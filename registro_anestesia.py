@@ -391,29 +391,105 @@ class GraficaAnestesia(QWidget):
             y = self.valor_a_y(valor, y0, y1)
             painter.drawText(40, int(y + 4), str(valor))
 
-        # Etiquetas de tiempo
+        # Etiquetas de tiempo: 15, 30, 45, 60 y reinicia
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        for i in range(num_columnas):
-            tiempo = (i + 1) * 5
-            x = int(x0 + i * ancho_col + ancho_col / 2)
-            if tiempo % 15 == 0:
-                painter.drawText(x - 10, y1 + 20, str(tiempo))
 
-        painter.drawText(15, y0 + 20, "SV")
-        painter.drawText(10, y1 + 20, "TIEMPOS")
+        # Minutos arriba de la gráfica principal
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setFont(QFont("Arial", 8))
+
+        y_minutos = y0 - 6  # ajustable
+
+        for i in range(num_columnas):
+            minuto_real = (i + 1) * 5
+
+            if minuto_real % 15 == 0:
+                minuto_etiqueta = minuto_real % 60
+                if minuto_etiqueta == 0:
+                    minuto_etiqueta = 60
+
+                texto = str(minuto_etiqueta)
+                x = int(x0 + (i + 1) * ancho_col)
+
+                rect = painter.fontMetrics().boundingRect(texto)
+                x_texto = x - rect.width() / 2
+
+                painter.drawText(int(x_texto), y_minutos, texto)
+
+        painter.drawText(10, y1 + 20, "TIEMPO")
         painter.drawText(x0, 20, "Gráfica anestésica (cada cuadro = 5 min)")
 
         # =========================
         # SpO2 + AGENTES ARRIBA
         # =========================
+      
+        # Área de agentes arriba de la gráfica
+        alto_fila_ag = 20
+        alto_franja_minutos = 16
 
-        y_spo2 = y0 - 20
-        y_fio2 = y0 - 40
-        y_flujo = y0 - 60
-        y_sevo = y0 - 80
+        y_ag_top = y0 - alto_franja_minutos - (alto_fila_ag * 4)
+        y_ag_bottom = y0 - alto_franja_minutos
 
-        painter.setFont(QFont("Arial", 9))
+        # Texto centrado verticalmente en cada fila
+        y_sevo = y_ag_top + 15
+        y_flujo = y_ag_top + 35
+        y_fio2 = y_ag_top + 55  
+        y_spo2 = y_ag_top + 75
+
+        # =========================
+        # Cuadrícula de agentes
+        # =========================
+        painter.setPen(QPen(QColor(180, 180, 180), 1))
+
+        # Verticales alineadas con la gráfica principal
+        for i in range(num_columnas + 1):
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+
+        # Horizontales internas y superior (sin la inferior)
+        for j in range(4):
+            y = y_ag_top + j * alto_fila_ag
+            painter.drawLine(x0, y, x1, y)
+
+        # Líneas gruesas cada 15 min
+        painter.setPen(QPen(QColor(120, 120, 120), 2))
+        for i in range(0, num_columnas + 1, 3):
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+
+        # Bordes de la cuadrícula de agentes (sin borde inferior)
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.drawLine(x0, y_ag_top, x1, y_ag_top)         # borde superior
+        painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)      # borde izquierdo
+        painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)      # borde derecho
+
+        # =========================
+        # Cuadrícula de agentes
+        # =========================
+
+        # 1) Verticales internas finas, EXCEPTO las de cada 15 min
+        painter.setPen(QPen(QColor(180, 180, 180), 1))
+        for i in range(1, num_columnas):  # sin bordes x0 y x1
+            if i % 3 != 0:  # no dibujar aquí las de 15, 30, 45...
+                x = int(x0 + i * ancho_col)
+                painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+
+        # 2) Horizontales internas finas (sin superior ni inferior)
+        for j in range(1, 4):  # solo divisiones internas
+            y = y_ag_top + j * alto_fila_ag
+            painter.drawLine(x0, y, x1, y)
+
+        # 3) Verticales gruesas cada 15 min
+        painter.setPen(QPen(QColor(120, 120, 120), 2))
+        for i in range(3, num_columnas, 3):  # internas, sin bordes
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+
+        # 4) Bordes de agentes (solo superior, izquierdo y derecho)
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.drawLine(x0, y_ag_top, x1, y_ag_top)          # superior
+        painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)       # izquierdo
+        painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)       # derecho
 
         # Etiquetas izquierda
         painter.drawText(x0 - 70, y_spo2, "SpO₂")
@@ -425,28 +501,36 @@ class GraficaAnestesia(QWidget):
         for t, s, f, fl, sv in zip(self.tiempos, self.spo2, self.fio2, self.flujo, self.sevo):
             x = self.tiempo_a_x(t, x0, ancho_col)
 
-            painter.drawText(int(x - 12), y_spo2, str(s))
-            painter.drawText(int(x - 12), y_fio2, str(f))
-            painter.drawText(int(x - 12), y_flujo, str(fl))
             painter.drawText(int(x - 12), y_sevo, str(sv))
+            painter.drawText(int(x - 12), y_flujo, str(fl))
+            painter.drawText(int(x - 12), y_fio2, str(f))
+            painter.drawText(int(x - 12), y_spo2, str(s))
     
-        # Pulso = círculo
+        # FC: puntos (sin línea)
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setBrush(QColor("black"))
+
+        for t, p in zip(self.tiempos, self.pulso):
+            x = int(self.tiempo_a_x(t, x0, ancho_col))
+            y = int(self.valor_a_y(p, y0, y1))
+            painter.drawEllipse(QPointF(x, y), 2, 2)
+
+        # TA: flechas sobre la línea de tiempo
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for t, p in zip(self.tiempos, self.pulso):
-            x = self.tiempo_a_x(t, x0, ancho_col)
-            y = self.valor_a_y(p, y0, y1)
-            painter.drawEllipse(QPointF(x, y), 4, 4)
 
-        # TA: ambas flechas en la misma columna de tiempo
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.setBrush(QColor("black"))
         for t, sis, dia in zip(self.tiempos, self.ta_sistolica, self.ta_diastolica):
-            x = self.tiempo_a_x(t, x0, ancho_col)
+            x = x0 + ((t - 5) / 5) * ancho_col
             y_sis = self.valor_a_y(sis, y0, y1)
             y_dia = self.valor_a_y(dia, y0, y1)
-            self.dibujar_flecha(painter, x, y_sis, direccion="abajo", tamaño=10)
-            self.dibujar_flecha(painter, x, y_dia, direccion="arriba", tamaño=10)
+
+            # Sistólica: flecha hacia abajo
+            painter.drawLine(int(x), int(y_sis), int(x - 4), int(y_sis - 6))
+            painter.drawLine(int(x), int(y_sis), int(x + 4), int(y_sis - 6))
+
+            # Diastólica: flecha hacia arriba
+            painter.drawLine(int(x), int(y_dia), int(x - 4), int(y_dia + 6))
+            painter.drawLine(int(x), int(y_dia), int(x + 4), int(y_dia + 6))
 
         # Temperatura = triángulo
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
@@ -455,25 +539,6 @@ class GraficaAnestesia(QWidget):
             x = self.tiempo_a_x(t, x0, ancho_col)
             y = self.temperatura_a_y(temp, y0, y1)
             self.dibujar_triangulo(painter, x, y, tamaño=8)
-
-        
-        painter.setFont(QFont("Arial", 9))
-        painter.drawText(x0 - 70, y_fio2, "FiO₂")
-        painter.drawText(x0 - 70, y_flujo, "Flujo")
-        painter.drawText(x0 - 70, y_sevo, "Sevo")
-
-        for t, v in zip(self.tiempos, self.fio2):
-            x = self.tiempo_a_x(t, x0, ancho_col)
-            painter.drawText(int(x - 12), y_fio2, v)
-
-        for t, v in zip(self.tiempos, self.flujo):
-            x = self.tiempo_a_x(t, x0, ancho_col)
-            painter.drawText(int(x - 10), y_flujo, v)
-
-        for t, v in zip(self.tiempos, self.sevo):
-            x = self.tiempo_a_x(t, x0, ancho_col)
-            painter.drawText(int(x - 12), y_sevo, v)
-
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
