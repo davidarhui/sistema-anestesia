@@ -5,12 +5,38 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont
 from PyQt6.QtCore import Qt, QPointF
+from PyQt6.QtWidgets import QLineEdit
 
 
 class GraficaAnestesia(QWidget):
     def __init__(self):
         super().__init__()
+
+        # =========================
+        # TIEMPOS CLÍNICOS (inputs)
+        # =========================
+
+        self.eventos_qx = [
+            "1. Entrada Qx",
+            "2. Inicio anest.",
+            "3. Inicio cirugía",
+            "4. Fin cirugía",
+            "5. Fin anest.",
+            "6. Salida Qx"
+        ]
+
+        self.inputs_tiempos = []
+
+        for _ in self.eventos_qx:
+            inp = QLineEdit(self)
+            inp.setPlaceholderText("hh:mm")
+            inp.setMaxLength(5)
+            inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            inp.setFrame(False)
+            self.inputs_tiempos.append(inp)
+
         self.setMinimumHeight(520)
+
 
         # Cada columna = 5 minutos
         self.time_columns = [
@@ -337,6 +363,24 @@ class GraficaAnestesia(QWidget):
         painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
         painter.drawText(left - 70, top - 8, "AGENTES")
 
+    def posicionar_inputs_tiempos(self, x0, y0, y1):
+        x_input = x0 - 48
+
+        paso = 18
+        n = len(self.inputs_tiempos)
+
+        y_inicio = y1 - (n - 1) * paso
+
+        for i, inp in enumerate(self.inputs_tiempos):
+            y = y_inicio + i * paso
+
+            inp.setGeometry(
+                int(x_input),
+                int(y - 10),
+                44,
+                20
+            )
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -344,10 +388,10 @@ class GraficaAnestesia(QWidget):
         ancho = self.width()
         alto = self.height()
 
-        margen_izq = 80
+        margen_izq = 110
         margen_der = 20
         margen_sup = 120
-        margen_inf = 130
+        margen_inf = 200
 
         x0 = margen_izq
         y0 = margen_sup
@@ -384,12 +428,16 @@ class GraficaAnestesia(QWidget):
             x = int(x0 + i * ancho_col)
             painter.drawLine(x, y0, x, y1)
 
+        # Línea superior de SV (redibujada al final para que quede limpia)
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.drawLine(x0, y0, x1, y0)
+
         # Escala izquierda
         painter.setFont(QFont("Arial", 8))
         painter.setPen(QPen(QColor(60, 60, 60), 1))
         for valor in [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]:
             y = self.valor_a_y(valor, y0, y1)
-            painter.drawText(40, int(y + 4), str(valor))
+            painter.drawText(x0 - 28, int(y + 4), str(valor))
 
         # Etiquetas de tiempo: 15, 30, 45, 60 y reinicia
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
@@ -429,7 +477,7 @@ class GraficaAnestesia(QWidget):
 
         y_ag_top = y0 - alto_franja_minutos - (alto_fila_ag * 4)
         y_ag_bottom = y0 - alto_franja_minutos
-
+        
         # Texto centrado verticalmente en cada fila
         y_sevo = y_ag_top + 15
         y_flujo = y_ag_top + 35
@@ -491,6 +539,10 @@ class GraficaAnestesia(QWidget):
         painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)       # izquierdo
         painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)       # derecho
 
+        # Línea inferior de AGENTES al final, para que quede limpia
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.drawLine(x0, y_ag_bottom, x1, y_ag_bottom)
+
         # Etiquetas izquierda
         painter.drawText(x0 - 70, y_spo2, "SpO₂")
         painter.drawText(x0 - 70, y_fio2, "FiO₂")
@@ -539,6 +591,23 @@ class GraficaAnestesia(QWidget):
             x = self.tiempo_a_x(t, x0, ancho_col)
             y = self.temperatura_a_y(temp, y0, y1)
             self.dibujar_triangulo(painter, x, y, tamaño=8)
+        
+        # Etiquetas de tiempos clínicos en columna izquierda
+        painter.setFont(QFont("Arial", 8))
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+        x_label = x0 - 105
+        n = len(self.eventos_qx)
+        paso = 18
+        n = len(self.eventos_qx)
+
+        y_inicio = y1 - (n - 1) * paso - 4
+
+        for i, evento in enumerate(self.eventos_qx):
+            y = y_inicio + i * paso
+            painter.drawText(int(x_label), int(y + 4), evento)
+
+        self.posicionar_inputs_tiempos(x0, y0, y1)
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
