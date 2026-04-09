@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont
 from PyQt6.QtCore import Qt, QPointF
 from PyQt6.QtWidgets import QLineEdit
-
+from datetime import datetime
+from PyQt6.QtWidgets import QMessageBox
 
 class GraficaAnestesia(QWidget):
     def __init__(self):
@@ -37,6 +38,23 @@ class GraficaAnestesia(QWidget):
 
         self.setMinimumHeight(520)
 
+        self.botones_eventos = []
+
+        for i, evento in enumerate(self.eventos_qx, start=1):
+            btn = QPushButton(evento, self)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet("""
+                QPushButton {
+                    text-align: left;
+                    border: none;
+                    background-color: transparent;
+                    color: black;
+                    font-size: 11px;
+                    padding-left: 0px;
+                }
+            """)
+            btn.clicked.connect(lambda _, n=i: self.registrar_evento(n))
+            self.botones_eventos.append(btn)
 
         # Cada columna = 5 minutos
         self.time_columns = [
@@ -121,6 +139,21 @@ class GraficaAnestesia(QWidget):
         self.flujo = ["2", "2", "2", "2", "1.5", "1.5", "1", "1", "1"]
         self.sevo = ["2.0", "2.0", "2.0", "1.8", "1.8", "1.5", "1.5", "1.2", "1.0"]
 
+        self.eventos_registrados = []   # lista de eventos: {"hora": ..., "numero": ...}
+        self.hora_inicio = datetime.now()
+
+      
+    def posicionar_botones_eventos(self, x0, y1):
+        x_boton = x0 - 105
+        paso = 18
+        n = len(self.botones_eventos)
+        y_inicio = y1 - (n - 1) * paso - 4
+
+        for i, btn in enumerate(self.botones_eventos):
+            y = y_inicio + i * paso
+            btn.setGeometry(int(x_boton), int(y - 10), 95, 20)
+            btn.raise_()
+            
     def valor_a_y(self, valor, y0, y1):
         vmin = 40
         vmax = 240
@@ -467,6 +500,8 @@ class GraficaAnestesia(QWidget):
         painter.drawText(10, y1 + 20, "TIEMPO")
         painter.drawText(x0, 20, "Gráfica anestésica (cada cuadro = 5 min)")
 
+        self.draw_eventos_abajo_sv(painter, x0, y1, ancho_col)
+
         # =========================
         # SpO2 + AGENTES ARRIBA
         # =========================
@@ -592,22 +627,89 @@ class GraficaAnestesia(QWidget):
             y = self.temperatura_a_y(temp, y0, y1)
             self.dibujar_triangulo(painter, x, y, tamaño=8)
         
-        # Etiquetas de tiempos clínicos en columna izquierda
-        painter.setFont(QFont("Arial", 8))
+        painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.drawText(int(x0 - 94), int(y1 - 118), "EVENTOS")
 
-        x_label = x0 - 105
-        n = len(self.eventos_qx)
-        paso = 18
-        n = len(self.eventos_qx)
-
-        y_inicio = y1 - (n - 1) * paso - 4
-
-        for i, evento in enumerate(self.eventos_qx):
-            y = y_inicio + i * paso
-            painter.drawText(int(x_label), int(y + 4), evento)
+        self.posicionar_botones_eventos(x0, y1)
 
         self.posicionar_inputs_tiempos(x0, y0, y1)
+
+    def registrar_evento(self, numero_evento):
+        numero_txt = str(numero_evento)
+        registrados = [e["numero"] for e in self.eventos_registrados]
+
+        # No repetir el mismo evento
+        if numero_txt in registrados:
+            QMessageBox.warning(
+                self,
+                "Evento ya registrado",
+                f"El evento '{self.nombre_evento(numero_evento)}' ya fue registrado."
+            )
+            return
+
+        # Validar secuencia
+        if numero_evento > 1:
+            previo_txt = str(numero_evento - 1)
+            if previo_txt not in registrados:
+                QMessageBox.warning(
+                    self,
+                    "Secuencia inválida",
+                    f"No puedes registrar '{self.nombre_evento(numero_evento)}' sin haber registrado antes '{self.nombre_evento(numero_evento - 1)}'."
+                )
+                return
+
+        ahora = datetime.now()
+        hora_txt = ahora.strftime("%H:%M")
+
+        self.eventos_registrados.append({
+            "hora": ahora,
+            "numero": numero_txt
+        })
+
+        indice = numero_evento - 1
+        if 0 <= indice < len(self.inputs_tiempos):
+            self.inputs_tiempos[indice].setText(hora_txt)
+
+        self.update()
+
+    def minutos_desde_inicio(self, hora_evento):
+        delta = hora_evento - self.hora_inicio
+        return int(delta.total_seconds() // 60)
+        
+    def x_columna_tiempo(self, minutos, x0, ancho_col):
+        columna = minutos // 5
+        return x0 + columna * ancho_col + ancho_col / 2
+
+    def draw_eventos_abajo_sv(self, painter, x0, y1, ancho_col):
+        if not self.eventos_registrados:
+            return
+
+        from collections import defaultdict
+
+        eventos_por_columna = defaultdict(list)
+
+        for evento in self.eventos_registrados:
+            minutos = self.minutos_desde_inicio(evento["hora"])
+            columna = minutos // 5
+            eventos_por_columna[columna].append(evento["numero"])
+
+        y_texto = y1 + 16
+        painter.setFont(QFont("Arial", 8))
+
+        for columna, numeros in eventos_por_columna.items():
+            x_centro = x0 + columna * ancho_col + ancho_col / 2
+            numeros_ordenados = sorted(numeros, key=int)
+            texto = ",".join(numeros_ordenados)
+
+            rect = painter.fontMetrics().boundingRect(texto)
+            x_texto = x_centro - rect.width() / 2
+
+            painter.drawText(int(x_texto), int(y_texto), texto)
+
+    def nombre_evento(self, numero_evento):
+        texto = self.eventos_qx[numero_evento - 1]
+        return texto.split(". ", 1)[1]        
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
@@ -661,26 +763,12 @@ class RegistroAnestesia(QWidget):
         self.grafica = GraficaAnestesia()
         layout.addWidget(self.grafica)
 
-        eventos_layout = QHBoxLayout()
-
-        self.btn1 = QPushButton("1. Entrada Qx")
-        self.btn2 = QPushButton("2. Inicio Anestesia")
-        self.btn3 = QPushButton("3. Inicio Cirugía")
-        self.btn4 = QPushButton("4. Fin Cirugía")
-        self.btn5 = QPushButton("5. Fin Anestesia")
-        self.btn6 = QPushButton("6. Salida Qx")
-
-        for btn in [self.btn1, self.btn2, self.btn3, self.btn4, self.btn5, self.btn6]:
-            eventos_layout.addWidget(btn)
-
-        layout.addLayout(eventos_layout)
-
         self.print_btn = QPushButton("IMPRIMIR REGISTRO")
         layout.addWidget(self.print_btn)
 
         self.setLayout(layout)
 
-
+       
 app = QApplication(sys.argv)
 window = RegistroAnestesia()
 window.show()
