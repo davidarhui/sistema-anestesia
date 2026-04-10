@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QLineEdit
 from datetime import datetime
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtWidgets import QScrollArea
+from PyQt6.QtCore import QRect
 
 class GraficaAnestesia(QWidget):
     def __init__(self):
@@ -152,6 +153,38 @@ class GraficaAnestesia(QWidget):
         self.hora_inicio = datetime.now()
         
         self.actualizar_estado_botones()
+
+        self.filas_meds = [chr(ord('A') + i) for i in range(13)]
+        self.inputs_medicamentos = []
+        self.inputs_dosis_via = []
+        estilo_tabla = """
+            QLineEdit {
+                border: none;
+                background: white;
+                color: black;
+                selection-background-color: #cce8ff;
+                selection-color: black;
+            }
+        """
+
+        for _ in self.filas_meds:
+            inp_med = QLineEdit(self)
+            inp_med.setFrame(False)
+            inp_med.setStyleSheet(estilo_tabla)
+            self.inputs_medicamentos.append(inp_med)
+
+            inp_dosis = QLineEdit(self)
+            inp_dosis.setFrame(False)
+            inp_dosis.setStyleSheet(estilo_tabla)
+            self.inputs_dosis_via.append(inp_dosis)
+        
+
+        for _ in self.filas_meds:
+            inp_med = QLineEdit(self)
+            inp_med.setPlaceholderText("")
+
+            inp_dosis = QLineEdit(self)
+            inp_dosis.setPlaceholderText("")
       
     def posicionar_botones_eventos(self, x0, y1):
         x_boton = x0 - 105
@@ -449,7 +482,13 @@ class GraficaAnestesia(QWidget):
         margen_izq = 110
         margen_der = 20
         margen_sup = 120
-        margen_inf = 200
+
+        alto_header_meds = 22
+        alto_fila_meds = 24
+        total_filas_meds = len(self.filas_meds)
+
+        # espacio para: TIEMPO + encabezado tabla + 13 filas + aire abajo
+        margen_inf = 60 + alto_header_meds + (total_filas_meds * alto_fila_meds) + 30
 
         x0 = margen_izq
         y0 = margen_sup
@@ -472,7 +511,7 @@ class GraficaAnestesia(QWidget):
         painter.setPen(QPen(QColor(180, 180, 180), 1))
         for i in range(1, num_columnas):
             x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y0, x, y1)
+            painter.drawLine(x, y0, x, y1 - 1)
 
         num_filas = 12
         alto_fila = alto_grafica / num_filas
@@ -484,11 +523,14 @@ class GraficaAnestesia(QWidget):
         painter.setPen(QPen(QColor(120, 120, 120), 2))
         for i in range(0, num_columnas + 1, 3):
             x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y0, x, y1)
+            painter.drawLine(x, y0, x, y1 - 1)
 
         # Línea superior de SV (redibujada al final para que quede limpia)
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.drawLine(x0, y0, x1, y0)
+
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.drawLine(x0, y1, x1, y1)
 
         # Escala izquierda
         painter.setFont(QFont("Arial", 8))
@@ -734,20 +776,7 @@ class GraficaAnestesia(QWidget):
 
         self.filas_meds = [chr(ord('A') + i) for i in range(13)]  # A a M
 
-        self.inputs_medicamentos = []
-        self.inputs_dosis_via = []
-
-        for _ in self.filas_meds:
-            inp_med = QLineEdit(self)
-            inp_med.setPlaceholderText("Medicamento")
-            inp_med.setFrame(True)
-            self.inputs_medicamentos.append(inp_med)
-
-            inp_dosis = QLineEdit(self)
-            inp_dosis.setPlaceholderText("Dosis/Vía")
-            inp_dosis.setFrame(True)
-            self.inputs_dosis_via.append(inp_dosis)
-
+           
     def registrar_evento(self, numero_evento):
         numero_txt = str(numero_evento)
         registrados = [e["numero"] for e in self.eventos_registrados]
@@ -852,8 +881,9 @@ class GraficaAnestesia(QWidget):
         for i in range(len(self.filas_meds)):
             y = y_tabla - 14 + alto_header + i * alto_fila
 
-            self.inputs_medicamentos[i].setGeometry(x_med + 2, y + 2, 196, 20)
-            self.inputs_dosis_via[i].setGeometry(x_dosis + 2, y + 2, 126, 20)
+            # Más angosto para no tapar la línea divisoria
+            self.inputs_medicamentos[i].setGeometry(x_med + 2, y + 2, 188, 20)
+            self.inputs_dosis_via[i].setGeometry(x_dosis + 2, y + 2, 114, 20)
 
     def draw_tabla_medicamentos(self, painter, y1):
         x_letra = 18
@@ -895,15 +925,44 @@ class GraficaAnestesia(QWidget):
             painter.drawLine(x0, y, x3, y)
 
         # Encabezados
-        painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        painter.drawText(x1 + 6, y0 + 15, "MEDICAMENTOS")
-        painter.drawText(x2 + 6, y0 + 15, "DOSIS/VIA")
+        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+
+        # Rectángulos de cada celda de encabezado
+        rect_meds = QRect(int(x1), int(y0), int(x2 - x1), int(alto_header))
+        rect_dosis = QRect(int(x2), int(y0), int(x3 - x2), int(alto_header))
+
+        # Dibujar texto centrado
+        painter.drawText(rect_meds, Qt.AlignmentFlag.AlignCenter, "MEDICAMENTOS")
+        painter.drawText(rect_dosis, Qt.AlignmentFlag.AlignCenter, "DOSIS/VIA")
 
         # Letras A-M
         painter.setFont(QFont("Arial", 8))
+
         for i, letra in enumerate(self.filas_meds):
-            y_texto = y0 + alto_header + i * alto_fila + 16
-            painter.drawText(x0 + 6, y_texto, letra)
+            rect_letra = QRect(
+                int(x0),
+                int(y0 + alto_header + i * alto_fila),
+                int(x1 - x0),
+                int(alto_fila)
+            )
+
+            painter.drawText(rect_letra, Qt.AlignmentFlag.AlignCenter, letra)
+
+    def obtener_medicamentos_registrados(self):
+        medicamentos = []
+
+        for i, letra in enumerate(self.filas_meds):
+            nombre = self.inputs_medicamentos[i].text().strip()
+            dosis_via = self.inputs_dosis_via[i].text().strip()
+
+            if nombre or dosis_via:
+                medicamentos.append({
+                    "fila": letra,
+                    "medicamento": nombre,
+                    "dosis_via": dosis_via
+                })
+
+        return medicamentos
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
@@ -970,7 +1029,35 @@ class RegistroAnestesia(QWidget):
         self.print_btn = QPushButton("IMPRIMIR REGISTRO")
         container_layout.addWidget(self.print_btn)
 
+        self.btn_debug = QPushButton("VER REGISTRO COMPLETO")
+        self.btn_debug.clicked.connect(self.mostrar_registro)
+        container_layout.addWidget(self.btn_debug)
+
         self.setLayout(layout)
+
+    def obtener_registro_completo(self):
+        registro = {
+            "paciente": {
+                "nombre": self.nombre.text(),
+                "nss": self.nss.text(),
+                "edad": self.edad.text(),
+                "sexo": self.sexo.text(),
+                "hgsz": self.hgsz.text()
+            },
+            "cirugia": {
+                "dx_pre": self.dx_pre.text(),
+                "procedimiento": self.proc.text(),
+                "dx_post": self.dx_op.text()
+            },
+            "eventos": self.grafica.eventos_registrados,
+            "medicamentos": self.grafica.obtener_medicamentos_registrados()
+        }
+
+        return registro
+    
+    def mostrar_registro(self):
+        registro = self.obtener_registro_completo()
+        print(registro)
     
 app = QApplication(sys.argv)
 window = RegistroAnestesia()
