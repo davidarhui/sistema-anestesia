@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QPointF
 from PyQt6.QtWidgets import QLineEdit
 from datetime import datetime
 from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QScrollArea
 
 class GraficaAnestesia(QWidget):
     def __init__(self):
@@ -36,25 +37,33 @@ class GraficaAnestesia(QWidget):
             inp.setFrame(False)
             self.inputs_tiempos.append(inp)
 
-        self.setMinimumHeight(520)
+        self.setMinimumHeight(900)
 
         self.botones_eventos = []
 
         for i, evento in enumerate(self.eventos_qx, start=1):
             btn = QPushButton(evento, self)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet("""
-                QPushButton {
-                    text-align: left;
-                    border: none;
-                    background-color: transparent;
-                    color: black;
-                    font-size: 11px;
-                    padding-left: 0px;
-                }
-            """)
             btn.clicked.connect(lambda _, n=i: self.registrar_evento(n))
             self.botones_eventos.append(btn)
+
+        self.btn_deshacer = QPushButton("↺", self)
+        self.btn_deshacer.setToolTip("Deshacer último evento")
+        self.btn_deshacer.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_deshacer.clicked.connect(self.deshacer_ultimo_evento)
+        self.btn_deshacer.setFixedSize(24, 20)
+        self.btn_deshacer.setStyleSheet("""
+            QPushButton {
+                border: none;
+                background-color: transparent;
+                color: black;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                color: #555;
+            }
+        """)
+
 
         # Cada columna = 5 minutos
         self.time_columns = [
@@ -141,18 +150,34 @@ class GraficaAnestesia(QWidget):
 
         self.eventos_registrados = []   # lista de eventos: {"hora": ..., "numero": ...}
         self.hora_inicio = datetime.now()
-
+        
+        self.actualizar_estado_botones()
       
     def posicionar_botones_eventos(self, x0, y1):
         x_boton = x0 - 105
         paso = 18
         n = len(self.botones_eventos)
-        y_inicio = y1 - (n - 1) * paso - 4
+
+        # subir ligeramente los eventos para dar espacio
+        y_inicio = y1 - (n - 1) * paso - 10
 
         for i, btn in enumerate(self.botones_eventos):
             y = y_inicio + i * paso
             btn.setGeometry(int(x_boton), int(y - 10), 95, 20)
             btn.raise_()
+
+        # === POSICIÓN DEL TÍTULO EVENTOS ===
+        y_eventos = y1 - 118
+        x_eventos = x0 - 105
+
+        # botón alineado a la derecha del texto
+        self.btn_deshacer.setGeometry(
+            int(x_eventos + 55),   # ajustable
+            int(y_eventos - 14),   # misma altura visual
+            28,
+            22
+        )
+        self.btn_deshacer.raise_()
             
     def valor_a_y(self, valor, y0, y1):
         vmin = 40
@@ -498,6 +523,13 @@ class GraficaAnestesia(QWidget):
                 painter.drawText(int(x_texto), y_minutos, texto)
 
         painter.drawText(10, y1 + 20, "TIEMPO")
+
+        # =========================
+        # TABLA DE MEDICAMENTOS
+        # =========================
+        self.posicionar_tabla_medicamentos(x0, y1)
+        self.draw_tabla_medicamentos(painter, y1)
+
         painter.drawText(x0, 20, "Gráfica anestésica (cada cuadro = 5 min)")
 
         self.draw_eventos_abajo_sv(painter, x0, y1, ancho_col)
@@ -629,11 +661,92 @@ class GraficaAnestesia(QWidget):
         
         painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        painter.drawText(int(x0 - 94), int(y1 - 118), "EVENTOS")
+        painter.drawText(int(x0 - 105), int(y1 - 118), "EVENTOS")
 
         self.posicionar_botones_eventos(x0, y1)
 
         self.posicionar_inputs_tiempos(x0, y0, y1)
+
+    def aplicar_estilo_boton_evento(self, btn, estado):
+        if estado == "activo":
+            btn.setStyleSheet("""
+                QPushButton {
+                    text-align: left;
+                    border: none;
+                    background-color: transparent;
+                    color: black;
+                    font-size: 11px;
+                    padding-left: 0px;
+                    font-weight: bold;
+                }
+            """)
+        elif estado == "usado":
+            btn.setStyleSheet("""
+                QPushButton {
+                    text-align: left;
+                    border: none;
+                    background-color: transparent;
+                    color: #7a7a7a;
+                    font-size: 11px;
+                    padding-left: 0px;
+                }
+            """)
+        else:  # bloqueado
+            btn.setStyleSheet("""
+                QPushButton {
+                    text-align: left;
+                    border: none;
+                    background-color: transparent;
+                    color: #b5b5b5;
+                    font-size: 11px;
+                    padding-left: 0px;
+                }
+            """)
+
+    def actualizar_estado_botones(self):
+        registrados = {e["numero"] for e in self.eventos_registrados}
+
+        for i, btn in enumerate(self.botones_eventos, start=1):
+            numero_txt = str(i)
+
+            # Si ya fue registrado
+            if numero_txt in registrados:
+                btn.setEnabled(False)
+                self.aplicar_estilo_boton_evento(btn, "usado")
+                continue
+
+            # Evento 1
+            if i == 1:
+                activo = "1" not in registrados
+                btn.setEnabled(activo)
+                self.aplicar_estilo_boton_evento(btn, "activo" if activo else "usado")
+                continue
+
+            # Los demás dependen del previo
+            previo_txt = str(i - 1)
+            activo = previo_txt in registrados
+
+            btn.setEnabled(activo)
+            if activo:
+                self.aplicar_estilo_boton_evento(btn, "activo")
+            else:
+                self.aplicar_estilo_boton_evento(btn, "bloqueado")
+
+        self.filas_meds = [chr(ord('A') + i) for i in range(13)]  # A a M
+
+        self.inputs_medicamentos = []
+        self.inputs_dosis_via = []
+
+        for _ in self.filas_meds:
+            inp_med = QLineEdit(self)
+            inp_med.setPlaceholderText("Medicamento")
+            inp_med.setFrame(True)
+            self.inputs_medicamentos.append(inp_med)
+
+            inp_dosis = QLineEdit(self)
+            inp_dosis.setPlaceholderText("Dosis/Vía")
+            inp_dosis.setFrame(True)
+            self.inputs_dosis_via.append(inp_dosis)
 
     def registrar_evento(self, numero_evento):
         numero_txt = str(numero_evento)
@@ -670,7 +783,8 @@ class GraficaAnestesia(QWidget):
         indice = numero_evento - 1
         if 0 <= indice < len(self.inputs_tiempos):
             self.inputs_tiempos[indice].setText(hora_txt)
-
+        
+        self.actualizar_estado_botones()
         self.update()
 
     def minutos_desde_inicio(self, hora_evento):
@@ -710,19 +824,109 @@ class GraficaAnestesia(QWidget):
     def nombre_evento(self, numero_evento):
         texto = self.eventos_qx[numero_evento - 1]
         return texto.split(". ", 1)[1]        
+    
+    def deshacer_ultimo_evento(self):
+        if not self.eventos_registrados:
+            return
+
+        ultimo = self.eventos_registrados.pop()
+        numero = int(ultimo["numero"])
+
+        # borrar hora del input correspondiente
+        indice = numero - 1
+        if 0 <= indice < len(self.inputs_tiempos):
+            self.inputs_tiempos[indice].clear()
+
+        self.actualizar_estado_botones()
+        self.update()
+
+    def posicionar_tabla_medicamentos(self, x0, y1):
+        x_letra = 18
+        x_med = 42
+        x_dosis = 250
+
+        y_tabla = y1 + 42
+        alto_header = 22
+        alto_fila = 24
+
+        for i in range(len(self.filas_meds)):
+            y = y_tabla - 14 + alto_header + i * alto_fila
+
+            self.inputs_medicamentos[i].setGeometry(x_med + 2, y + 2, 196, 20)
+            self.inputs_dosis_via[i].setGeometry(x_dosis + 2, y + 2, 126, 20)
+
+    def draw_tabla_medicamentos(self, painter, y1):
+        x_letra = 18
+        x_med = 42
+        x_dosis = 250
+
+        w_letra = 20
+        w_med = 200
+        w_dosis = 130
+
+        y_tabla = y1 + 42
+        alto_header = 22
+        alto_fila = 24
+        total_filas = len(self.filas_meds)
+
+        x0 = x_letra
+        x1 = x0 + w_letra
+        x2 = x1 + w_med
+        x3 = x2 + w_dosis
+
+        y0 = y_tabla - 14
+        y1_tabla = y0 + alto_header + total_filas * alto_fila
+
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+        # Borde exterior
+        painter.drawRect(x0, y0, x3 - x0, y1_tabla - y0)
+
+        # Verticales
+        painter.drawLine(x1, y0, x1, y1_tabla)
+        painter.drawLine(x2, y0, x2, y1_tabla)
+
+        # Línea debajo del encabezado
+        painter.drawLine(x0, y0 + alto_header, x3, y0 + alto_header)
+
+        # Horizontales de filas
+        for i in range(total_filas):
+            y = y0 + alto_header + (i + 1) * alto_fila
+            painter.drawLine(x0, y, x3, y)
+
+        # Encabezados
+        painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
+        painter.drawText(x1 + 6, y0 + 15, "MEDICAMENTOS")
+        painter.drawText(x2 + 6, y0 + 15, "DOSIS/VIA")
+
+        # Letras A-M
+        painter.setFont(QFont("Arial", 8))
+        for i, letra in enumerate(self.filas_meds):
+            y_texto = y0 + alto_header + i * alto_fila + 16
+            painter.drawText(x0 + 6, y_texto, letra)
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Registro de Anestesia IMSS")
-        self.setGeometry(100, 100, 1200, 860)
+        self.resize(1100, 700)
+        self.setMinimumSize(900, 600)
 
         layout = QVBoxLayout()
 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
         header = QLabel("REGISTRO DE ANESTESIA Y RECUPERACIÓN")
         header.setStyleSheet("font-size: 18px; font-weight: bold;")
-        layout.addWidget(header)
+        container_layout.addWidget(header)
 
         grid = QGridLayout()
 
@@ -758,17 +962,16 @@ class RegistroAnestesia(QWidget):
         self.dx_op = QLineEdit()
         grid.addWidget(self.dx_op, 4, 1, 1, 5)
 
-        layout.addLayout(grid)
+        container_layout.addLayout(grid)
 
         self.grafica = GraficaAnestesia()
-        layout.addWidget(self.grafica)
+        container_layout.addWidget(self.grafica)
 
         self.print_btn = QPushButton("IMPRIMIR REGISTRO")
-        layout.addWidget(self.print_btn)
+        container_layout.addWidget(self.print_btn)
 
         self.setLayout(layout)
-
-       
+    
 app = QApplication(sys.argv)
 window = RegistroAnestesia()
 window.show()
