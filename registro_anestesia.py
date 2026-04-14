@@ -10,6 +10,9 @@ from datetime import datetime
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtWidgets import QScrollArea
 from PyQt6.QtCore import QRect
+from PyQt6.QtGui import QFont
+
+
 
 class GraficaAnestesia(QWidget):
     def __init__(self):
@@ -29,14 +32,6 @@ class GraficaAnestesia(QWidget):
         ]
 
         self.inputs_tiempos = []
-
-        for _ in self.eventos_qx:
-            inp = QLineEdit(self)
-            inp.setPlaceholderText("hh:mm")
-            inp.setMaxLength(5)
-            inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            inp.setFrame(False)
-            self.inputs_tiempos.append(inp)
 
         self.setMinimumHeight(900)
 
@@ -167,6 +162,9 @@ class GraficaAnestesia(QWidget):
             }
         """
 
+        self.setMinimumSize(1400, 900)
+        btn.setFixedSize(95, 20)
+
         for _ in self.filas_meds:
             inp_med = QLineEdit(self)
             inp_med.setFrame(False)
@@ -177,14 +175,7 @@ class GraficaAnestesia(QWidget):
             inp_dosis.setFrame(False)
             inp_dosis.setStyleSheet(estilo_tabla)
             self.inputs_dosis_via.append(inp_dosis)
-        
 
-        for _ in self.filas_meds:
-            inp_med = QLineEdit(self)
-            inp_med.setPlaceholderText("")
-
-            inp_dosis = QLineEdit(self)
-            inp_dosis.setPlaceholderText("")
       
     def posicionar_botones_eventos(self, x0, y1):
         x_boton = x0 - 105
@@ -707,7 +698,6 @@ class GraficaAnestesia(QWidget):
 
         self.posicionar_botones_eventos(x0, y1)
 
-        self.posicionar_inputs_tiempos(x0, y0, y1)
 
     def aplicar_estilo_boton_evento(self, btn, estado):
         if estado == "activo":
@@ -808,10 +798,6 @@ class GraficaAnestesia(QWidget):
             "hora": ahora,
             "numero": numero_txt
         })
-
-        indice = numero_evento - 1
-        if 0 <= indice < len(self.inputs_tiempos):
-            self.inputs_tiempos[indice].setText(hora_txt)
         
         self.actualizar_estado_botones()
         self.update()
@@ -859,13 +845,6 @@ class GraficaAnestesia(QWidget):
             return
 
         ultimo = self.eventos_registrados.pop()
-        numero = int(ultimo["numero"])
-
-        # borrar hora del input correspondiente
-        indice = numero - 1
-        if 0 <= indice < len(self.inputs_tiempos):
-            self.inputs_tiempos[indice].clear()
-
         self.actualizar_estado_botones()
         self.update()
 
@@ -1058,8 +1037,18 @@ class RegistroAnestesia(QWidget):
     def mostrar_registro(self):
         registro = self.obtener_registro_completo()
         print(registro)
-    
-app = QApplication(sys.argv)
-window = RegistroAnestesia()
-window.show()
-sys.exit(app.exec())
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+
+    app.setFont(QFont("Arial", 10))
+    app.setStyleSheet("""
+        QWidget {
+            font-size: 10pt;
+        }
+    """)
+
+    window = RegistroAnestesia()
+    window.show()
+
+    sys.exit(app.exec())
