@@ -1,22 +1,33 @@
 import sys
+import random
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QHBoxLayout, QGridLayout
+    QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox
 )
 from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont
-from PyQt6.QtCore import Qt, QPointF
-from PyQt6.QtWidgets import QLineEdit
+from PyQt6.QtCore import Qt, QPointF, QRect, QTimer
 from datetime import datetime
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtWidgets import QScrollArea
-from PyQt6.QtCore import QRect
-from PyQt6.QtGui import QFont
-
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+from PyQt6.QtGui import QPageSize
+from PyQt6.QtWidgets import QFileDialog
+import json
 
 
 class GraficaAnestesia(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.datos_sv = []
+        self.columna_actual = 0
+        self.max_columnas = 12  # 00,05,10,...55
+        self.velocidad_sim_ms = 2000
+        self.datos_temp = []
+
+        self.timer_sv = QTimer(self)
+        self.timer_sv.timeout.connect(self.agregar_dato_simulado)
+        self.timer_sv.setInterval(self.velocidad_sim_ms)
 
         # =========================
         # TIEMPOS CLÍNICOS (inputs)
@@ -60,6 +71,66 @@ class GraficaAnestesia(QWidget):
             }
         """)
 
+        self.btn_iniciar_sv = QPushButton("Inicio", self)
+        self.btn_iniciar_sv.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_iniciar_sv.clicked.connect(self.iniciar_simulacion_sv)
+
+        self.btn_pausar_sv = QPushButton("Pausa", self)
+        self.btn_pausar_sv.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_pausar_sv.clicked.connect(self.pausar_simulacion_sv)
+
+        self.btn_reiniciar_sv = QPushButton("Reinicio", self)
+        self.btn_reiniciar_sv.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_reiniciar_sv.clicked.connect(self.reiniciar_simulacion_sv)
+
+        for btn in [self.btn_iniciar_sv, self.btn_pausar_sv, self.btn_reiniciar_sv]:
+            btn.setFixedSize(90, 18)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: white;
+                    color: black;
+                    border: 2px solid black;
+                    border-radius: 3px;
+                    font-size: 10px;
+                    padding: 0px 3px;
+                }
+                QPushButton:hover {
+                    background-color: #f2f2f2;
+                }
+                QPushButton:pressed {
+                    background-color: #e6e6e6;
+                }
+            """)
+
+        self.btn_reiniciar_sv.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                color: black;
+                border: 2px solid black;
+                border-radius: 3px;
+                font-size: 10px;
+                padding-top: 1px;
+                padding-bottom: 1px;
+                }
+            """)
+
+        self.btn_pausar_sv.setEnabled(False)
+        self.btn_reiniciar_sv.setEnabled(True)
+        self.combo_velocidad_sv = QComboBox(self)
+        self.combo_velocidad_sv.addItems(["1x", "2x", "5x", "10x"])
+        self.combo_velocidad_sv.setCurrentText("1x")
+        self.combo_velocidad_sv.currentTextChanged.connect(self.cambiar_velocidad_simulacion)
+        self.combo_velocidad_sv.setStyleSheet("""
+            QComboBox {
+                background-color: white;
+                color: black;
+                border: 1px solid black;
+                border-radius: 3px;
+                font-size: 9px;
+                padding: 1px 6px;
+            }
+        """)
+        self.combo_velocidad_sv.setFixedSize(70, 20)
 
         # Cada columna = 5 minutos
         self.time_columns = [
@@ -165,6 +236,10 @@ class GraficaAnestesia(QWidget):
         self.setMinimumSize(1400, 900)
         btn.setFixedSize(95, 20)
 
+        self.lbl_velocidad_sv = QLabel("Vel", self)
+        self.lbl_velocidad_sv.setStyleSheet("color: black; font-size: 9px;")
+        self.lbl_velocidad_sv.adjustSize()
+
         for _ in self.filas_meds:
             inp_med = QLineEdit(self)
             inp_med.setFrame(False)
@@ -174,9 +249,45 @@ class GraficaAnestesia(QWidget):
             inp_dosis = QLineEdit(self)
             inp_dosis.setFrame(False)
             inp_dosis.setStyleSheet(estilo_tabla)
+            inp_dosis.editingFinished.connect(
+                lambda campo=inp_dosis: self.aplicar_normalizacion(campo)
+            )
             self.inputs_dosis_via.append(inp_dosis)
 
-      
+    def normalizar_unidades(self, texto):
+        return (
+            texto.replace("MCG", "µg")
+                .replace("mcg", "µg")
+                .replace("Mcg", "µg")
+                .replace("uG", "µg")
+                .replace("ug", "µg")
+        )
+
+    def aplicar_normalizacion(self, input_field):
+        texto = input_field.text()
+        nuevo = self.normalizar_unidades(texto)
+
+        if texto == nuevo:
+            return
+
+        pos = input_field.cursorPosition()
+
+        input_field.blockSignals(True)
+        input_field.setText(nuevo)
+        input_field.setCursorPosition(min(pos, len(nuevo)))
+        input_field.blockSignals(False)
+
+    def cambiar_velocidad_simulacion(self, texto):
+        mapa = {
+            "1x": 2000,
+            "2x": 1000,
+            "5x": 400,
+            "10x": 200,
+        }
+
+        self.velocidad_sim_ms = mapa.get(texto, 2000)
+        self.timer_sv.setInterval(self.velocidad_sim_ms)
+
     def posicionar_botones_eventos(self, x0, y1):
         x_boton = x0 - 105
         paso = 18
@@ -563,7 +674,7 @@ class GraficaAnestesia(QWidget):
         self.posicionar_tabla_medicamentos(x0, y1)
         self.draw_tabla_medicamentos(painter, y1)
 
-        painter.drawText(x0, 20, "Gráfica anestésica (cada cuadro = 5 min)")
+        # painter.drawText(x0, 20, "Gráfica anestésica (cada cuadro = 5 min)")
 
         self.draw_eventos_abajo_sv(painter, x0, y1, ancho_col)
 
@@ -577,6 +688,8 @@ class GraficaAnestesia(QWidget):
 
         y_ag_top = y0 - alto_franja_minutos - (alto_fila_ag * 4)
         y_ag_bottom = y0 - alto_franja_minutos
+
+        self.posicionar_botones_simulacion(x0, y_ag_top)
         
         # Texto centrado verticalmente en cada fila
         y_sevo = y_ag_top + 15
@@ -650,53 +763,55 @@ class GraficaAnestesia(QWidget):
         painter.drawText(x0 - 70, y_sevo, "Sevo")
 
         # Valores alineados al tiempo
-        for t, s, f, fl, sv in zip(self.tiempos, self.spo2, self.fio2, self.flujo, self.sevo):
-            x = self.tiempo_a_x(t, x0, ancho_col)
-
-            painter.drawText(int(x - 12), y_sevo, str(sv))
-            painter.drawText(int(x - 12), y_flujo, str(fl))
-            painter.drawText(int(x - 12), y_fio2, str(f))
-            painter.drawText(int(x - 12), y_spo2, str(s))
-    
+        # for t, s, f, fl, sv in zip(self.tiempos, self.spo2, self.fio2, self.flujo, self.sevo):
+        #    x = self.tiempo_a_x(t, x0, ancho_col)
+        #
+        #    painter.drawText(int(x - 12), y_sevo, str(sv))
+        #    painter.drawText(int(x - 12), y_flujo, str(fl))
+        #    painter.drawText(int(x - 12), y_fio2, str(f))
+        #    painter.drawText(int(x - 12), y_spo2, str(s))
+        #
         # FC: puntos (sin línea)
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        painter.setBrush(QColor("black"))
-
-        for t, p in zip(self.tiempos, self.pulso):
-            x = int(self.tiempo_a_x(t, x0, ancho_col))
-            y = int(self.valor_a_y(p, y0, y1))
-            painter.drawEllipse(QPointF(x, y), 2, 2)
+        # painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        # painter.setBrush(QColor("black"))
+        #
+        # for t, p in zip(self.tiempos, self.pulso):
+        # x = int(self.tiempo_a_x(t, x0, ancho_col))
+        # y = int(self.valor_a_y(p, y0, y1))
+        # painter.drawEllipse(QPointF(x, y), 2, 2)
 
         # TA: flechas sobre la línea de tiempo
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-
-        for t, sis, dia in zip(self.tiempos, self.ta_sistolica, self.ta_diastolica):
-            x = x0 + ((t - 5) / 5) * ancho_col
-            y_sis = self.valor_a_y(sis, y0, y1)
-            y_dia = self.valor_a_y(dia, y0, y1)
-
-            # Sistólica: flecha hacia abajo
-            painter.drawLine(int(x), int(y_sis), int(x - 4), int(y_sis - 6))
-            painter.drawLine(int(x), int(y_sis), int(x + 4), int(y_sis - 6))
-
-            # Diastólica: flecha hacia arriba
-            painter.drawLine(int(x), int(y_dia), int(x - 4), int(y_dia + 6))
-            painter.drawLine(int(x), int(y_dia), int(x + 4), int(y_dia + 6))
+        # painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        # painter.setBrush(Qt.BrushStyle.NoBrush)
+        #
+        # for t, sis, dia in zip(self.tiempos, self.ta_sistolica, self.ta_diastolica):
+        #     x = x0 + ((t - 5) / 5) * ancho_col
+        #     y_sis = self.valor_a_y(sis, y0, y1)
+        #     y_dia = self.valor_a_y(dia, y0, y1)
+        #
+        #     painter.drawLine(int(x), int(y_sis), int(x - 4), int(y_sis - 6))
+        #     painter.drawLine(int(x), int(y_sis), int(x + 4), int(y_sis - 6))
+        #
+        #     painter.drawLine(int(x), int(y_dia), int(x - 4), int(y_dia + 6))
+        #     painter.drawLine(int(x), int(y_dia), int(x + 4), int(y_dia + 6))
 
         # Temperatura = triángulo
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for t, temp in zip(self.tiempos, self.temperatura):
-            x = self.tiempo_a_x(t, x0, ancho_col)
-            y = self.temperatura_a_y(temp, y0, y1)
-            self.dibujar_triangulo(painter, x, y, tamaño=8)
+        # for t, temp in zip(self.tiempos, self.temperatura):
+        #    x = self.tiempo_a_x(t, x0, ancho_col)
+        #    y = self.temperatura_a_y(temp, y0, y1)
+        #    self.dibujar_triangulo(painter, x, y, tamaño=8)
         
         painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
         painter.drawText(int(x0 - 105), int(y1 - 118), "EVENTOS")
 
         self.posicionar_botones_eventos(x0, y1)
+
+        self.draw_agentes_simulados(painter)
+        self.draw_sv_simulados(painter)
+        self.draw_temperatura_simulada(painter)
 
 
     def aplicar_estilo_boton_evento(self, btn, estado):
@@ -927,6 +1042,44 @@ class GraficaAnestesia(QWidget):
 
             painter.drawText(rect_letra, Qt.AlignmentFlag.AlignCenter, letra)
 
+    def draw_temperatura_simulada(self, painter):
+        if not self.datos_temp:
+            return
+
+        ancho = self.width()
+        alto = self.height()
+
+        margen_izq = 110
+        margen_der = 20
+        margen_sup = 120
+
+        alto_header_meds = 22
+        alto_fila_meds = 24
+        total_filas_meds = len(self.filas_meds)
+        margen_inf = 60 + alto_header_meds + (total_filas_meds * alto_fila_meds) + 30
+
+        x0 = margen_izq
+        y0 = margen_sup
+        x1 = ancho - margen_der
+        y1 = alto - margen_inf
+
+        ancho_grafica = x1 - x0
+        num_columnas = 36
+        ancho_col = ancho_grafica / num_columnas
+
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        for d in self.datos_temp:
+            col = d["col"]
+            temp = d["temp"]
+
+            x = x0 + (col * ancho_col) + (ancho_col / 2)
+            y = self.temperatura_a_y(temp, y0, y1)
+
+            self.dibujar_triangulo(painter, x, y, tamaño=6)
+
+
     def obtener_medicamentos_registrados(self):
         medicamentos = []
 
@@ -942,6 +1095,228 @@ class GraficaAnestesia(QWidget):
                 })
 
         return medicamentos
+    
+    def agregar_dato_simulado(self):
+        if self.columna_actual >= self.max_columnas:
+            self.timer_sv.stop()
+            self.btn_iniciar_sv.setEnabled(False)
+            self.btn_pausar_sv.setEnabled(False)
+            self.btn_reiniciar_sv.setEnabled(True)
+            return
+
+        if not self.datos_sv:
+            fc_base = 78
+            tas_base = 120
+            tad_base = 80
+            spo2_base = 98
+            fio2_base = 50
+            flujo_base = 2.0
+            sevo_base = 2.0
+        else:
+            ultimo = self.datos_sv[-1]
+            fc_base = ultimo["fc"]
+            tas_base = ultimo["tas"]
+            tad_base = ultimo["tad"]
+            spo2_base = ultimo["spo2"]
+            fio2_base = ultimo["fio2"]
+            flujo_base = ultimo["flujo"]
+            sevo_base = ultimo["sevo"]
+
+        fc = max(45, min(140, fc_base + random.randint(-5, 5)))
+        tas = max(80, min(180, tas_base + random.randint(-8, 8)))
+        tad = max(40, min(110, tad_base + random.randint(-5, 5)))
+
+        if tad >= tas:
+            tad = tas - 10
+
+        spo2 = max(88, min(100, spo2_base + random.randint(-1, 1)))
+        fio2 = max(21, min(100, fio2_base + random.choice([-5, 0, 5])))
+        flujo = max(0.5, min(10.0, round(flujo_base + random.choice([-0.5, 0, 0.5]), 1)))
+        sevo = max(0.0, min(8.0, round(sevo_base + random.choice([-0.2, 0, 0.2]), 1)))
+
+        self.datos_sv.append({
+            "col": self.columna_actual,
+            "fc": fc,
+            "tas": tas,
+            "tad": tad,
+            "spo2": spo2,
+            "fio2": fio2,
+            "flujo": flujo,
+            "sevo": sevo,
+        })
+
+        if self.columna_actual % 3 == 0:
+            if not self.datos_temp:
+                temp_base = 36.5
+            else:
+                temp_base = self.datos_temp[-1]["temp"]
+
+            temp = round(max(35.0, min(38.5, temp_base + random.choice([-0.1, 0.0, 0.1]))), 1)
+
+            self.datos_temp.append({
+                "col": self.columna_actual,
+                "temp": temp,
+            })
+
+        self.columna_actual += 1
+        self.update()
+
+    
+    def draw_sv_simulados(self, painter):
+        if not self.datos_sv:
+            return
+
+        ancho = self.width()
+        alto = self.height()
+
+        margen_izq = 110
+        margen_der = 20
+        margen_sup = 120
+
+        alto_header_meds = 22
+        alto_fila_meds = 24
+        total_filas_meds = len(self.filas_meds)
+        margen_inf = 60 + alto_header_meds + (total_filas_meds * alto_fila_meds) + 30
+
+        x0 = margen_izq
+        y0 = margen_sup
+        x1 = ancho - margen_der
+        y1 = alto - margen_inf
+
+        ancho_grafica = x1 - x0
+        num_columnas = 36
+        ancho_col = ancho_grafica / num_columnas
+
+        for d in self.datos_sv:
+            col = d["col"]
+
+            x_linea_tiempo = x0 + (col * ancho_col)
+            x_centro = x_linea_tiempo + (ancho_col / 2)
+
+            y_tas = self.valor_a_y(d["tas"], y0, y1)
+            y_tad = self.valor_a_y(d["tad"], y0, y1)
+            y_fc = self.valor_a_y(d["fc"], y0, y1)
+
+            self.draw_ta_marker(painter, x_linea_tiempo, y_tas, up=False)
+            self.draw_ta_marker(painter, x_linea_tiempo, y_tad, up=True)
+            self.draw_fc_point(painter, x_centro, y_fc)
+
+
+    def draw_ta_marker(self, painter, x, y, up=True):
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        if up:
+            painter.drawLine(int(x), int(y), int(x - 4), int(y + 6))
+            painter.drawLine(int(x), int(y), int(x + 4), int(y + 6))
+        else:
+            painter.drawLine(int(x), int(y), int(x - 4), int(y - 6))
+            painter.drawLine(int(x), int(y), int(x + 4), int(y - 6))
+
+    def draw_fc_point(self, painter, x, y):
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setBrush(QColor("black"))
+        painter.drawEllipse(QPointF(x, y), 2, 2)
+
+    def draw_agentes_simulados(self, painter):
+        if not self.datos_sv:
+            return
+
+        ancho = self.width()
+        alto = self.height()
+
+        margen_izq = 110
+        margen_der = 20
+        margen_sup = 120
+
+        alto_header_meds = 22
+        alto_fila_meds = 24
+        total_filas_meds = len(self.filas_meds)
+        margen_inf = 60 + alto_header_meds + (total_filas_meds * alto_fila_meds) + 30
+
+        x0 = margen_izq
+        y0 = margen_sup
+        x1 = ancho - margen_der
+
+        ancho_grafica = x1 - x0
+        num_columnas = 36
+        ancho_col = ancho_grafica / num_columnas
+
+        alto_fila_ag = 20
+        alto_franja_minutos = 16
+
+        y_ag_top = y0 - alto_franja_minutos - (alto_fila_ag * 4)
+
+        y_sevo = y_ag_top + 15
+        y_flujo = y_ag_top + 35
+        y_fio2 = y_ag_top + 55
+        y_spo2 = y_ag_top + 75
+
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setFont(QFont("Arial", 8))
+
+        for d in self.datos_sv:
+            if not all(k in d for k in ("col", "spo2", "fio2", "flujo", "sevo")):
+                continue
+
+            col = d["col"]
+            x = x0 + (col * ancho_col) + (ancho_col / 2)
+
+            painter.drawText(int(x - 12), y_sevo, f'{d["sevo"]:.1f}')
+            painter.drawText(int(x - 12), y_flujo, f'{d["flujo"]:.1f}')
+            painter.drawText(int(x - 12), y_fio2, str(d["fio2"]))
+            painter.drawText(int(x - 12), y_spo2, str(d["spo2"]))
+
+
+    def iniciar_simulacion_sv(self):
+        if self.columna_actual >= self.max_columnas:
+            return
+        self.timer_sv.start()
+        self.btn_iniciar_sv.setEnabled(False)
+        self.btn_pausar_sv.setEnabled(True)
+        self.btn_reiniciar_sv.setEnabled(True)
+
+    def pausar_simulacion_sv(self):
+        self.timer_sv.stop()
+        self.btn_iniciar_sv.setEnabled(True)
+        self.btn_pausar_sv.setEnabled(False)
+
+    def reiniciar_simulacion_sv(self):
+        self.timer_sv.stop()
+        self.datos_sv = []
+        self.datos_temp = []
+        self.columna_actual = 0
+        self.btn_iniciar_sv.setEnabled(True)
+        self.btn_pausar_sv.setEnabled(False)
+        self.btn_reiniciar_sv.setEnabled(True)
+        self.update()
+
+    def posicionar_botones_simulacion(self, x0, y_ag_top):
+        y_botones = y_ag_top - 25
+        x_inicio = x0 + 250
+        separacion = 102
+
+        self.btn_iniciar_sv.move(int(x_inicio), int(y_botones))
+        self.btn_pausar_sv.move(int(x_inicio + separacion), int(y_botones))
+        self.btn_reiniciar_sv.move(int(x_inicio + (2 * separacion)), int(y_botones))
+
+        x_vel = int(x_inicio + (3 * separacion) + 10)
+        self.lbl_velocidad_sv.move(x_vel, int(y_botones + 3))
+        self.lbl_velocidad_sv.adjustSize()
+
+        self.combo_velocidad_sv.move(x_vel + 28, int(y_botones))
+
+    def aplicar_normalizacion(self, input_field):
+        texto = input_field.text()
+        nuevo = self.normalizar_unidades(texto)
+
+        if texto != nuevo:
+            cursor_pos = input_field.cursorPosition()
+            input_field.blockSignals(True)
+            input_field.setText(nuevo)
+            input_field.setCursorPosition(cursor_pos)
+            input_field.blockSignals(False)
+
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
@@ -1005,14 +1380,24 @@ class RegistroAnestesia(QWidget):
         self.grafica = GraficaAnestesia()
         container_layout.addWidget(self.grafica)
 
-        self.print_btn = QPushButton("IMPRIMIR REGISTRO")
+        self.print_btn = QPushButton("EXPORTAR PDF + JSON")
+        self.print_btn.clicked.connect(self.exportar_pdf_json)
         container_layout.addWidget(self.print_btn)
+        
+        self.load_btn = QPushButton("CARGAR JSON")
+        self.load_btn.clicked.connect(self.cargar_json)
+        container_layout.addWidget(self.load_btn)
 
         self.btn_debug = QPushButton("VER REGISTRO COMPLETO")
         self.btn_debug.clicked.connect(self.mostrar_registro)
         container_layout.addWidget(self.btn_debug)
 
+        self.btn_nuevo = QPushButton("NUEVO REGISTRO")
+        self.btn_nuevo.clicked.connect(self.nuevo_registro)
+        container_layout.addWidget(self.btn_nuevo)
+
         self.setLayout(layout)
+        
 
     def obtener_registro_completo(self):
         registro = {
@@ -1037,6 +1422,353 @@ class RegistroAnestesia(QWidget):
     def mostrar_registro(self):
         registro = self.obtener_registro_completo()
         print(registro)
+
+
+    def exportar_pdf_json(self):
+        ruta_base, _ = QFileDialog.getSaveFileName(
+            self,
+            "Guardar PDF y JSON",
+            "registro_anestesia",
+            "Archivos PDF (*.pdf);;Todos los archivos (*)"
+        )
+
+        if not ruta_base:
+            return
+
+        if ruta_base.lower().endswith(".pdf"):
+            ruta_base = ruta_base[:-4]
+
+        ruta_pdf = ruta_base + ".pdf"
+        ruta_json = ruta_base + ".json"
+
+        # =========================
+        # 1) Exportar PDF
+        # =========================
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+        printer.setOutputFileName(ruta_pdf)
+        printer.setPageSize(QPageSize(QPageSize.PageSizeId.Letter))
+        printer.setFullPage(False)
+
+        painter = QPainter()
+        if not painter.begin(printer):
+            QMessageBox.warning(self, "Error", "No se pudo generar el PDF.")
+            return
+
+        try:
+            page_rect = printer.pageLayout().paintRectPixels(printer.resolution())
+            page_width = page_rect.width()
+            page_height = page_rect.height()
+
+            dpi = printer.resolution()
+
+            def mm(valor_mm):
+                return int(valor_mm * dpi / 25.4)
+
+            margen_izq = mm(12)
+            margen_der = mm(12)
+            margen_sup = mm(12)
+            margen_inf = mm(12)
+
+            area_x = margen_izq
+            area_y = margen_sup
+            area_w = page_width - margen_izq - margen_der
+            area_h = page_height - margen_sup - margen_inf
+
+            y = area_y
+
+            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+            font_titulo = QFont("Arial", 14, QFont.Weight.Bold)
+            font_label = QFont("Arial", 10, QFont.Weight.Bold)
+            font_valor = QFont("Arial", 10)
+
+            # ===== TÍTULO =====
+            painter.setFont(font_titulo)
+            rect_titulo = QRect(area_x, y, area_w, mm(8))
+            painter.drawText(
+                rect_titulo,
+                Qt.AlignmentFlag.AlignCenter,
+                "REGISTRO DE ANESTESIA Y RECUPERACIÓN"
+            )
+            y += mm(12)
+
+            datos = self.obtener_registro_completo()
+            paciente = datos["paciente"]
+            cirugia = datos["cirugia"]
+
+            col1_x = area_x
+            col2_x = area_x + int(area_w * 0.52)
+
+            def draw_campo(label, valor, x, y, w_label, w_linea):
+                painter.setFont(font_label)
+                painter.drawText(x, y, label)
+
+                painter.setFont(font_valor)
+                painter.drawText(x + w_label, y, str(valor))
+
+                painter.setPen(QPen(Qt.GlobalColor.black, 2))  # línea más gruesa
+                painter.drawLine(
+                    x + w_label,
+                    y + mm(1.5),
+                    x + w_label + w_linea,
+                    y + mm(1.5)
+                )
+                painter.setPen(QPen(Qt.GlobalColor.black, 1))  # regresar a normal
+
+            # ===== CAMPOS =====
+            draw_campo("Nombre:", paciente["nombre"], col1_x, y, mm(18), mm(70))
+            draw_campo("NSS:", paciente["nss"], col2_x, y, mm(12), mm(50))
+            y += mm(8)
+
+            draw_campo("Edad:", paciente["edad"], col1_x, y, mm(12), mm(25))
+            draw_campo("Sexo:", paciente["sexo"], col2_x, y, mm(12), mm(25))
+            y += mm(8)
+
+            draw_campo("Diagnóstico preoperatorio:", cirugia["dx_pre"], col1_x, y, mm(45), mm(120))
+            y += mm(8)
+
+            draw_campo("Procedimiento:", cirugia["procedimiento"], col1_x, y, mm(28), mm(137))
+            y += mm(8)
+
+            draw_campo("Diagnóstico operatorio:", cirugia["dx_post"], col1_x, y, mm(40), mm(125))
+            y += mm(10)
+
+            y_grafica = y + mm(4)
+
+            # ===== ocultar controles antes de capturar =====
+            widgets_ocultar = [
+                self.grafica.btn_iniciar_sv,
+                self.grafica.btn_pausar_sv,
+                self.grafica.btn_reiniciar_sv,
+                self.grafica.combo_velocidad_sv,
+                self.grafica.lbl_velocidad_sv,
+                self.grafica.btn_deshacer,
+            ] + self.grafica.botones_eventos
+
+            estados_visibles = [w.isVisible() for w in widgets_ocultar]
+
+            for w in widgets_ocultar:
+                w.hide()
+
+            self.grafica.repaint()
+            QApplication.processEvents()
+
+            pixmap = self.grafica.grab()
+
+            for w, visible in zip(widgets_ocultar, estados_visibles):
+                if visible:
+                    w.show()
+
+            self.grafica.repaint()
+            QApplication.processEvents()
+
+            img_width = pixmap.width()
+            img_height = pixmap.height()
+
+            espacio_restante_h = area_y + area_h - y_grafica
+
+            escala = min(area_w / img_width, espacio_restante_h / img_height)
+
+            new_width = int(img_width * escala)
+            new_height = int(img_height * escala)
+
+            x_img = area_x + int((area_w - new_width) / 2)
+            y_img = y_grafica
+
+            target = QRect(x_img, y_img, new_width, new_height)
+            source = pixmap.rect()
+
+            painter.drawPixmap(target, pixmap, source)
+
+        finally:
+            painter.end()
+
+        # =========================
+        # 2) Exportar JSON
+        # =========================
+        registro = self.obtener_registro_completo()
+
+        registro["signos_vitales_simulados"] = self.grafica.datos_sv
+        registro["temperatura_simulada"] = self.grafica.datos_temp
+
+        eventos_limpios = []
+        for evento in self.grafica.eventos_registrados:
+            eventos_limpios.append({
+                "numero": evento["numero"],
+                "hora": evento["hora"].strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+        registro["eventos"] = eventos_limpios
+
+        try:
+            with open(ruta_json, "w", encoding="utf-8") as f:
+                json.dump(registro, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Se generó el PDF, pero no se pudo guardar el JSON.\n\n{e}"
+            )
+            return
+
+        QMessageBox.information(
+            self,
+            "Exportación completada",
+            f"Se guardaron:\n\nPDF: {ruta_pdf}\nJSON: {ruta_json}"
+        )
+
+    def cargar_json(self):
+        ruta, _ = QFileDialog.getOpenFileName(
+            self,
+            "Cargar JSON",
+            "",
+            "Archivos JSON (*.json)"
+        )
+
+        if not ruta:
+            return
+
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo leer el archivo JSON.\n\n{e}")
+            return
+
+        try:
+            # =========================
+            # Paciente
+            # =========================
+            paciente = data.get("paciente", {})
+            self.nombre.setText(str(paciente.get("nombre", "")))
+            self.nss.setText(str(paciente.get("nss", "")))
+            self.edad.setText(str(paciente.get("edad", "")))
+            self.sexo.setText(str(paciente.get("sexo", "")))
+            self.hgsz.setText(str(paciente.get("hgsz", "")))
+
+            # =========================
+            # Cirugía
+            # =========================
+            cirugia = data.get("cirugia", {})
+            self.dx_pre.setText(str(cirugia.get("dx_pre", "")))
+            self.proc.setText(str(cirugia.get("procedimiento", "")))
+            self.dx_op.setText(str(cirugia.get("dx_post", "")))
+
+            # =========================
+            # Medicamentos
+            # =========================
+            for inp in self.grafica.inputs_medicamentos:
+                inp.setText("")
+            for inp in self.grafica.inputs_dosis_via:
+                inp.setText("")
+
+            medicamentos = data.get("medicamentos", [])
+            for med in medicamentos:
+                fila = med.get("fila", "")
+                if not fila:
+                    continue
+
+                idx = ord(fila.upper()) - ord("A")
+                if 0 <= idx < len(self.grafica.inputs_medicamentos):
+                    self.grafica.inputs_medicamentos[idx].setText(str(med.get("medicamento", "")))
+                    self.grafica.inputs_dosis_via[idx].setText(str(med.get("dosis_via", "")))
+
+            # =========================
+            # Eventos
+            # =========================
+            self.grafica.eventos_registrados = []
+            eventos = data.get("eventos", [])
+
+            for ev in eventos:
+                hora_str = ev.get("hora", "")
+                numero = str(ev.get("numero", ""))
+
+                try:
+                    hora_dt = datetime.strptime(hora_str, "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    continue
+
+                self.grafica.eventos_registrados.append({
+                    "hora": hora_dt,
+                    "numero": numero
+                })
+
+            # Ajustar hora_inicio según el primer evento si existe
+            if self.grafica.eventos_registrados:
+                self.grafica.hora_inicio = min(e["hora"] for e in self.grafica.eventos_registrados)
+            else:
+                self.grafica.hora_inicio = datetime.now()
+
+            self.grafica.actualizar_estado_botones()
+
+            # =========================
+            # Signos vitales y temperatura
+            # =========================
+            self.grafica.datos_sv = data.get("signos_vitales_simulados", [])
+            self.grafica.datos_temp = data.get("temperatura_simulada", [])
+
+            # Ajustar columna actual para continuar desde el último punto
+            if self.grafica.datos_sv:
+                ultima_col = max(d.get("col", 0) for d in self.grafica.datos_sv)
+                self.grafica.columna_actual = ultima_col + 1
+            else:
+                self.grafica.columna_actual = 0
+
+            # Si ya está completa la simulación, detener timer
+            if self.grafica.columna_actual >= self.grafica.max_columnas:
+                self.grafica.timer_sv.stop()
+                self.grafica.btn_iniciar_sv.setEnabled(False)
+                self.grafica.btn_pausar_sv.setEnabled(False)
+                self.grafica.btn_reiniciar_sv.setEnabled(True)
+            else:
+                self.grafica.timer_sv.stop()
+                self.grafica.btn_iniciar_sv.setEnabled(True)
+                self.grafica.btn_pausar_sv.setEnabled(False)
+                self.grafica.btn_reiniciar_sv.setEnabled(True)
+
+            self.grafica.update()
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo cargar completamente el JSON.\n\n{e}")
+            return
+
+        QMessageBox.information(self, "JSON cargado", f"Se cargó correctamente:\n{ruta}")
+
+    def nuevo_registro(self):
+        # Paciente
+        self.nombre.clear()
+        self.nss.clear()
+        self.edad.clear()
+        self.sexo.clear()
+        self.hgsz.clear()
+
+        # Cirugía
+        self.dx_pre.clear()
+        self.proc.clear()
+        self.dx_op.clear()
+
+        # Medicamentos
+        for inp in self.grafica.inputs_medicamentos:
+            inp.clear()
+        for inp in self.grafica.inputs_dosis_via:
+            inp.clear()
+
+        # Eventos
+        self.grafica.eventos_registrados = []
+        self.grafica.hora_inicio = datetime.now()
+        self.grafica.actualizar_estado_botones()
+
+        # Gráfica
+        self.grafica.datos_sv = []
+        self.grafica.datos_temp = []
+        self.grafica.columna_actual = 0
+
+        self.grafica.timer_sv.stop()
+        self.grafica.btn_iniciar_sv.setEnabled(True)
+        self.grafica.btn_pausar_sv.setEnabled(False)
+
+        self.grafica.update()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
