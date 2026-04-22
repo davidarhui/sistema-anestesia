@@ -2,9 +2,9 @@ import sys
 import random
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox
+    QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, QCompleter
 )
-from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont
+from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont, QPalette
 from PyQt6.QtCore import Qt, QPointF, QRect, QTimer
 from datetime import datetime
 from PyQt6.QtWidgets import QMessageBox
@@ -12,9 +12,83 @@ from PyQt6.QtWidgets import QScrollArea
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt6.QtGui import QPageSize
 from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtCore import QStringListModel
+from exportar_pdf_imss import exportar_a_pdf_imss
 import json
 
+class LineEditConSufijo(QLineEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.sufijo_sugerido = ""
 
+    def setSufijoSugerido(self, texto):
+        self.sufijo_sugerido = texto or ""
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+
+        if not self.sufijo_sugerido:
+            return
+
+        texto = self.text().strip()
+
+        if not texto:
+            return
+
+        if not self._texto_compatible(texto):
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        fm = self.fontMetrics()
+        x_texto = 6 + fm.horizontalAdvance(texto) + 4
+        y_texto = int((self.height() + fm.ascent() - fm.descent()) / 2)
+
+        color = self.palette().color(QPalette.ColorRole.PlaceholderText)
+        painter.setPen(color)
+        painter.drawText(x_texto, y_texto, self.sufijo_sugerido)
+
+    def _texto_compatible(self, texto):
+        if not texto:
+            return False
+
+        texto = texto.replace(",", ".")
+        try:
+            float(texto)
+            return True
+        except ValueError:
+            return False
+
+    def convertir_a_texto_final(self):
+        texto = self.text().strip()
+
+        if not self.sufijo_sugerido:
+            return
+
+        if not texto:
+            return
+
+        if not self._texto_compatible(texto):
+            return
+
+        texto_final = f"{texto} {self.sufijo_sugerido}".strip()
+
+        if texto_final == self.text():
+            return
+
+        self.blockSignals(True)
+        self.setText(texto_final)
+        self.blockSignals(False)
+
+        self.sufijo_sugerido = ""
+        self.update()
+
+    def focusOutEvent(self, event):
+        self.convertir_a_texto_final()
+        super().focusOutEvent(event)
+        
 class GraficaAnestesia(QWidget):
     def __init__(self):
         super().__init__()
@@ -47,6 +121,15 @@ class GraficaAnestesia(QWidget):
         self.setMinimumHeight(900)
 
         self.botones_eventos = []
+
+        self.eventos_titulos = [
+            "1. Entrada Qx",
+            "2. Inicio anest.",
+            "3. Inicio cirugía",
+            "4. Fin cirugía",
+            "5. Fin anest.",
+            "6. Salida Qx"
+        ]
 
         for i, evento in enumerate(self.eventos_qx, start=1):
             btn = QPushButton(evento, self)
@@ -231,10 +314,112 @@ class GraficaAnestesia(QWidget):
                 selection-background-color: #cce8ff;
                 selection-color: black;
             }
+            QLineEdit[echoMode="0"] {
+            }
         """
 
+        self.lista_medicamentos = [
+            "Atropina",
+            "Bupivacaína",
+            "Bupivacaína pesada",
+            "Cefalotina",
+            "Ceftriaxona",
+            "Clindamicina",
+            "Dexmedetomidina",
+            "Diazepam",
+            "Diclofenaco",
+            "Dexametasona",
+            "Efedrina",
+            "Epinefrina",
+            "Etomidato",
+            "Fentanilo",
+            "Flumazenil",
+            "Glicopirrolato",
+            "Ketamina",
+            "Lidocaína",
+            "Lidocaína/epinefrina",
+            "Metamizol",
+            "Metoclopramida",
+            "Midazolam",
+            "Morfina",
+            "Nalbufina",
+            "Naloxona",
+            "Neostigmina",
+            "Nitroglicerina",
+            "Norepinefrina",
+            "Ondansetrón",
+            "Paracetamol",
+            "Propofol",
+            "Rocuronio",
+            "Sevoflurano",
+            "Succinilcolina",
+            "Sugammadex",
+            "Tramadol",
+            "Vecuronio"
+        ]
+
+        self.alias_medicamentos = {
+            "fenta": "Fentanilo",
+            "fentan": "Fentanilo",
+            "dex": "Dexmedetomidina",
+            "dexa": "Dexametasona",
+            "rocu": "Rocuronio",
+            "vecu": "Vecuronio",
+            "suxa": "Succinilcolina",
+            "succi": "Succinilcolina",
+            "lido": "Lidocaína",
+            "bupi": "Bupivacaína",
+            "bupi pesada": "Bupivacaína pesada",
+            "ket": "Ketamina",
+            "mid": "Midazolam",
+            "prop": "Propofol",
+            "ondan": "Ondansetrón",
+            "metro": "Metoclopramida",
+            "trama": "Tramadol",
+            "morf": "Morfina",
+        }
+
+        self.dosis_sugeridas = {
+            "Atropina": "mg IV",
+            "Bupivacaína": "mL regional",
+            "Bupivacaína pesada": "mg IT",
+            "Cefalotina": "g IV",
+            "Ceftriaxona": "g IV",
+            "Clindamicina": "mg IV",
+            "Dexmedetomidina": "µg IV",
+            "Diazepam": "mg IV",
+            "Diclofenaco": "mg IV",
+            "Dexametasona": "mg IV",
+            "Efedrina": "mg IV",
+            "Epinefrina": "µg IV",
+            "Etomidato": "mg IV",
+            "Fentanilo": "µg IV",
+            "Flumazenil": "mg IV",
+            "Glicopirrolato": "mg IV",
+            "Ketamina": "mg IV",
+            "Lidocaína": "mg IV",
+            "Lidocaína/epinefrina": "mL PD",
+            "Metamizol": "g IV",
+            "Metoclopramida": "mg IV",
+            "Midazolam": "mg IV",
+            "Morfina": "mg IV",
+            "Nalbufina": "mg IV",
+            "Naloxona": "mg IV",
+            "Neostigmina": "mg IV",
+            "Nitroglicerina": "µg IV",
+            "Norepinefrina": "µg IV",
+            "Ondansetrón": "mg IV",
+            "Paracetamol": "g IV",
+            "Propofol": "mg IV",
+            "Rocuronio": "mg IV",
+            "Sevoflurano": "% inhalado",
+            "Succinilcolina": "mg IV",
+            "Sugammadex": "mg IV",
+            "Tramadol": "mg IV",
+            "Vecuronio": "mg IV",
+        }
         self.setMinimumSize(1400, 900)
-        btn.setFixedSize(95, 20)
+
 
         self.lbl_velocidad_sv = QLabel("Vel", self)
         self.lbl_velocidad_sv.setStyleSheet("color: black; font-size: 9px;")
@@ -244,16 +429,29 @@ class GraficaAnestesia(QWidget):
             inp_med = QLineEdit(self)
             inp_med.setFrame(False)
             inp_med.setStyleSheet(estilo_tabla)
-            self.inputs_medicamentos.append(inp_med)
+            inp_med.setCompleter(self.crear_completer_medicamentos())
 
-            inp_dosis = QLineEdit(self)
+            inp_dosis = LineEditConSufijo(self)
             inp_dosis.setFrame(False)
             inp_dosis.setStyleSheet(estilo_tabla)
-            inp_dosis.editingFinished.connect(
-                lambda campo=inp_dosis: self.aplicar_normalizacion(campo)
-            )
-            self.inputs_dosis_via.append(inp_dosis)
 
+            # 👉 color gris del sufijo/placeholder
+            pal = inp_dosis.palette()
+            pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))
+            inp_dosis.setPalette(pal)
+
+            inp_med.editingFinished.connect(
+                lambda campo_med=inp_med, campo_dosis=inp_dosis:
+                self.preparar_sugerencia_dosis(campo_med, campo_dosis)
+            )
+
+            inp_dosis.textEdited.connect(
+                lambda _, campo=inp_dosis: self.aplicar_normalizacion(campo)
+            )
+
+            self.inputs_medicamentos.append(inp_med)
+            self.inputs_dosis_via.append(inp_dosis)
+            
     def normalizar_unidades(self, texto):
         return (
             texto.replace("MCG", "µg")
@@ -263,19 +461,7 @@ class GraficaAnestesia(QWidget):
                 .replace("ug", "µg")
         )
 
-    def aplicar_normalizacion(self, input_field):
-        texto = input_field.text()
-        nuevo = self.normalizar_unidades(texto)
 
-        if texto == nuevo:
-            return
-
-        pos = input_field.cursorPosition()
-
-        input_field.blockSignals(True)
-        input_field.setText(nuevo)
-        input_field.setCursorPosition(min(pos, len(nuevo)))
-        input_field.blockSignals(False)
 
     def cambiar_velocidad_simulacion(self, texto):
         mapa = {
@@ -377,29 +563,7 @@ class GraficaAnestesia(QWidget):
             return None
         return int(col_left)
 
-    def draw_ta_marker(self, painter, x, y_sys, y_dia):
-        marker_half_width = 7
-        marker_height = 5
 
-        # Sistólica = ˅
-        painter.drawLine(
-            x - marker_half_width, y_sys - marker_height,
-            x, y_sys
-        )
-        painter.drawLine(
-            x + marker_half_width, y_sys - marker_height,
-            x, y_sys
-        )
-
-        # Diastólica = ˄
-        painter.drawLine(
-            x - marker_half_width, y_dia + marker_height,
-            x, y_dia
-        )
-        painter.drawLine(
-            x + marker_half_width, y_dia + marker_height,
-            x, y_dia
-        )
 
     def draw_grid(self, painter):
         left = self.graph_left
@@ -482,11 +646,8 @@ class GraficaAnestesia(QWidget):
 
         # mover al centro del cuadro
         return int(y_line - self.cell_size / 2)
-    
-    def draw_fc_point(self, painter, x, y):
-        radius = 3
-        painter.drawEllipse(x - radius, y - radius, radius * 2, radius * 2)
-    
+
+
     def draw_fc_data(self, painter):
         pen = QPen()
         pen.setWidth(1)
@@ -642,7 +803,7 @@ class GraficaAnestesia(QWidget):
             painter.drawText(x0 - 28, int(y + 4), str(valor))
 
         # Etiquetas de tiempo: 15, 30, 45, 60 y reinicia
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
 
         # Minutos arriba de la gráfica principal
         painter.setPen(QPen(Qt.GlobalColor.black, 1))
@@ -719,7 +880,7 @@ class GraficaAnestesia(QWidget):
             painter.drawLine(x, y_ag_top, x, y_ag_bottom)
 
         # Bordes de la cuadrícula de agentes (sin borde inferior)
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.drawLine(x0, y_ag_top, x1, y_ag_top)         # borde superior
         painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)      # borde izquierdo
         painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)      # borde derecho
@@ -747,7 +908,7 @@ class GraficaAnestesia(QWidget):
             painter.drawLine(x, y_ag_top, x, y_ag_bottom)
 
         # 4) Bordes de agentes (solo superior, izquierdo y derecho)
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.drawLine(x0, y_ag_top, x1, y_ag_top)          # superior
         painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)       # izquierdo
         painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)       # derecho
@@ -879,43 +1040,7 @@ class GraficaAnestesia(QWidget):
             else:
                 self.aplicar_estilo_boton_evento(btn, "bloqueado")
 
-        self.filas_meds = [chr(ord('A') + i) for i in range(13)]  # A a M
 
-           
-    def registrar_evento(self, numero_evento):
-        numero_txt = str(numero_evento)
-        registrados = [e["numero"] for e in self.eventos_registrados]
-
-        # No repetir el mismo evento
-        if numero_txt in registrados:
-            QMessageBox.warning(
-                self,
-                "Evento ya registrado",
-                f"El evento '{self.nombre_evento(numero_evento)}' ya fue registrado."
-            )
-            return
-
-        # Validar secuencia
-        if numero_evento > 1:
-            previo_txt = str(numero_evento - 1)
-            if previo_txt not in registrados:
-                QMessageBox.warning(
-                    self,
-                    "Secuencia inválida",
-                    f"No puedes registrar '{self.nombre_evento(numero_evento)}' sin haber registrado antes '{self.nombre_evento(numero_evento - 1)}'."
-                )
-                return
-
-        ahora = datetime.now()
-        hora_txt = ahora.strftime("%H:%M")
-
-        self.eventos_registrados.append({
-            "hora": ahora,
-            "numero": numero_txt
-        })
-        
-        self.actualizar_estado_botones()
-        self.update()
 
     def minutos_desde_inicio(self, hora_evento):
         delta = hora_evento - self.hora_inicio
@@ -936,6 +1061,12 @@ class GraficaAnestesia(QWidget):
         for evento in self.eventos_registrados:
             minutos = self.minutos_desde_inicio(evento["hora"])
             columna = minutos // 5
+
+            if columna < 0:
+                columna = 0
+            if columna > 35:
+                columna = 35
+
             eventos_por_columna[columna].append(evento["numero"])
 
         y_texto = y1 + 16
@@ -954,6 +1085,21 @@ class GraficaAnestesia(QWidget):
     def nombre_evento(self, numero_evento):
         texto = self.eventos_qx[numero_evento - 1]
         return texto.split(". ", 1)[1]        
+    
+    def registrar_evento(self, numero_evento):
+        hora_actual = datetime.now()
+
+        # Si es el primer evento, usarlo como referencia de tiempo
+        if not self.eventos_registrados:
+            self.hora_inicio = hora_actual
+
+        self.eventos_registrados.append({
+            "hora": hora_actual,
+            "numero": str(numero_evento)
+        })
+
+        self.actualizar_estado_botones()
+        self.update()
     
     def deshacer_ultimo_evento(self):
         if not self.eventos_registrados:
@@ -1310,12 +1456,52 @@ class GraficaAnestesia(QWidget):
         texto = input_field.text()
         nuevo = self.normalizar_unidades(texto)
 
-        if texto != nuevo:
-            cursor_pos = input_field.cursorPosition()
-            input_field.blockSignals(True)
-            input_field.setText(nuevo)
-            input_field.setCursorPosition(cursor_pos)
-            input_field.blockSignals(False)
+        if texto == nuevo:
+            return
+
+        pos = input_field.cursorPosition()
+
+        input_field.blockSignals(True)
+        input_field.setText(nuevo)
+        input_field.setCursorPosition(min(pos, len(nuevo)))
+        input_field.blockSignals(False)
+
+    def crear_completer_medicamentos(self):
+        model = QStringListModel(self.lista_medicamentos, self)
+
+        completer = QCompleter(self)
+        completer.setModel(model)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchFlag.MatchStartsWith)
+        completer.setCompletionMode(QCompleter.CompletionMode.InlineCompletion)
+        
+        return completer
+    
+    def normalizar_medicamento(self, texto):
+        t = texto.strip().lower()
+
+        for alias, nombre_real in self.alias_medicamentos.items():
+            if t == alias:
+                return nombre_real
+
+        return texto
+
+    def preparar_sugerencia_dosis(self, input_med, input_dosis):
+        texto_original = input_med.text().strip()
+
+        if not texto_original:
+            input_dosis.setSufijoSugerido("")
+            return
+
+        nombre_normalizado = self.normalizar_medicamento(texto_original).strip()
+
+        if texto_original != nombre_normalizado:
+            input_med.blockSignals(True)
+            input_med.setText(nombre_normalizado)
+            input_med.blockSignals(False)
+
+        sugerencia = self.dosis_sugeridas.get(nombre_normalizado, "")
+        input_dosis.setSufijoSugerido(sugerencia)
 
 
 class RegistroAnestesia(QWidget):
@@ -1359,21 +1545,25 @@ class RegistroAnestesia(QWidget):
         self.sexo = QLineEdit()
         grid.addWidget(self.sexo, 1, 3)
 
-        grid.addWidget(QLabel("HGSZ #18:"), 1, 4)
-        self.hgsz = QLineEdit()
-        grid.addWidget(self.hgsz, 1, 5)
+        grid.addWidget(QLabel("Unidad:"), 1, 4)
+        self.unidad = QLineEdit()
+        grid.addWidget(self.unidad, 1, 5)
 
         grid.addWidget(QLabel("Diagnóstico preoperatorio:"), 2, 0)
         self.dx_pre = QLineEdit()
         grid.addWidget(self.dx_pre, 2, 1, 1, 5)
 
-        grid.addWidget(QLabel("Procedimiento:"), 3, 0)
-        self.proc = QLineEdit()
-        grid.addWidget(self.proc, 3, 1, 1, 5)
+        grid.addWidget(QLabel("Cirugía programada:"), 3, 0)
+        self.cirugia_programada = QLineEdit()
+        grid.addWidget(self.cirugia_programada, 3, 1, 1, 5)
 
         grid.addWidget(QLabel("Diagnóstico operatorio:"), 4, 0)
         self.dx_op = QLineEdit()
         grid.addWidget(self.dx_op, 4, 1, 1, 5)
+
+        grid.addWidget(QLabel("Cirugía realizada:"), 5, 0)
+        self.cirugia_realizada = QLineEdit()
+        grid.addWidget(self.cirugia_realizada, 5, 1, 1, 5)
 
         container_layout.addLayout(grid)
 
@@ -1394,6 +1584,9 @@ class RegistroAnestesia(QWidget):
 
         self.btn_nuevo = QPushButton("NUEVO REGISTRO")
         self.btn_nuevo.clicked.connect(self.nuevo_registro)
+
+        self.btn_pdf = QPushButton("Guardar PDF")
+        self.btn_pdf.clicked.connect(lambda: exportar_a_pdf_imss(self))
         container_layout.addWidget(self.btn_nuevo)
 
         self.setLayout(layout)
@@ -1402,17 +1595,18 @@ class RegistroAnestesia(QWidget):
     def obtener_registro_completo(self):
         registro = {
             "paciente": {
-                "nombre": self.nombre.text(),
-                "nss": self.nss.text(),
-                "edad": self.edad.text(),
-                "sexo": self.sexo.text(),
-                "hgsz": self.hgsz.text()
-            },
-            "cirugia": {
-                "dx_pre": self.dx_pre.text(),
-                "procedimiento": self.proc.text(),
-                "dx_post": self.dx_op.text()
-            },
+            "nombre": self.nombre.text(),
+            "nss": self.nss.text(),
+            "edad": self.edad.text(),
+            "sexo": self.sexo.text(),
+            "unidad": self.unidad.text()
+        },
+        "cirugia": {
+            "dx_pre": self.dx_pre.text(),
+            "cirugia_programada": self.cirugia_programada.text(),
+            "dx_post": self.dx_op.text(),
+            "cirugia_realizada": self.cirugia_realizada.text()
+        },
             "eventos": self.grafica.eventos_registrados,
             "medicamentos": self.grafica.obtener_medicamentos_registrados()
         }
@@ -1441,154 +1635,13 @@ class RegistroAnestesia(QWidget):
         ruta_pdf = ruta_base + ".pdf"
         ruta_json = ruta_base + ".json"
 
-        # =========================
-        # 1) Exportar PDF
-        # =========================
-        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
-        printer.setOutputFileName(ruta_pdf)
-        printer.setPageSize(QPageSize(QPageSize.PageSizeId.Letter))
-        printer.setFullPage(False)
-
-        painter = QPainter()
-        if not painter.begin(printer):
-            QMessageBox.warning(self, "Error", "No se pudo generar el PDF.")
+        try:
+            exportar_a_pdf_imss(self, ruta_pdf)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudo generar el PDF IMSS.\n\n{e}")
             return
 
-        try:
-            page_rect = printer.pageLayout().paintRectPixels(printer.resolution())
-            page_width = page_rect.width()
-            page_height = page_rect.height()
-
-            dpi = printer.resolution()
-
-            def mm(valor_mm):
-                return int(valor_mm * dpi / 25.4)
-
-            margen_izq = mm(12)
-            margen_der = mm(12)
-            margen_sup = mm(12)
-            margen_inf = mm(12)
-
-            area_x = margen_izq
-            area_y = margen_sup
-            area_w = page_width - margen_izq - margen_der
-            area_h = page_height - margen_sup - margen_inf
-
-            y = area_y
-
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
-
-            font_titulo = QFont("Arial", 14, QFont.Weight.Bold)
-            font_label = QFont("Arial", 10, QFont.Weight.Bold)
-            font_valor = QFont("Arial", 10)
-
-            # ===== TÍTULO =====
-            painter.setFont(font_titulo)
-            rect_titulo = QRect(area_x, y, area_w, mm(8))
-            painter.drawText(
-                rect_titulo,
-                Qt.AlignmentFlag.AlignCenter,
-                "REGISTRO DE ANESTESIA Y RECUPERACIÓN"
-            )
-            y += mm(12)
-
-            datos = self.obtener_registro_completo()
-            paciente = datos["paciente"]
-            cirugia = datos["cirugia"]
-
-            col1_x = area_x
-            col2_x = area_x + int(area_w * 0.52)
-
-            def draw_campo(label, valor, x, y, w_label, w_linea):
-                painter.setFont(font_label)
-                painter.drawText(x, y, label)
-
-                painter.setFont(font_valor)
-                painter.drawText(x + w_label, y, str(valor))
-
-                painter.setPen(QPen(Qt.GlobalColor.black, 2))  # línea más gruesa
-                painter.drawLine(
-                    x + w_label,
-                    y + mm(1.5),
-                    x + w_label + w_linea,
-                    y + mm(1.5)
-                )
-                painter.setPen(QPen(Qt.GlobalColor.black, 1))  # regresar a normal
-
-            # ===== CAMPOS =====
-            draw_campo("Nombre:", paciente["nombre"], col1_x, y, mm(18), mm(70))
-            draw_campo("NSS:", paciente["nss"], col2_x, y, mm(12), mm(50))
-            y += mm(8)
-
-            draw_campo("Edad:", paciente["edad"], col1_x, y, mm(12), mm(25))
-            draw_campo("Sexo:", paciente["sexo"], col2_x, y, mm(12), mm(25))
-            y += mm(8)
-
-            draw_campo("Diagnóstico preoperatorio:", cirugia["dx_pre"], col1_x, y, mm(45), mm(120))
-            y += mm(8)
-
-            draw_campo("Procedimiento:", cirugia["procedimiento"], col1_x, y, mm(28), mm(137))
-            y += mm(8)
-
-            draw_campo("Diagnóstico operatorio:", cirugia["dx_post"], col1_x, y, mm(40), mm(125))
-            y += mm(10)
-
-            y_grafica = y + mm(4)
-
-            # ===== ocultar controles antes de capturar =====
-            widgets_ocultar = [
-                self.grafica.btn_iniciar_sv,
-                self.grafica.btn_pausar_sv,
-                self.grafica.btn_reiniciar_sv,
-                self.grafica.combo_velocidad_sv,
-                self.grafica.lbl_velocidad_sv,
-                self.grafica.btn_deshacer,
-            ] + self.grafica.botones_eventos
-
-            estados_visibles = [w.isVisible() for w in widgets_ocultar]
-
-            for w in widgets_ocultar:
-                w.hide()
-
-            self.grafica.repaint()
-            QApplication.processEvents()
-
-            pixmap = self.grafica.grab()
-
-            for w, visible in zip(widgets_ocultar, estados_visibles):
-                if visible:
-                    w.show()
-
-            self.grafica.repaint()
-            QApplication.processEvents()
-
-            img_width = pixmap.width()
-            img_height = pixmap.height()
-
-            espacio_restante_h = area_y + area_h - y_grafica
-
-            escala = min(area_w / img_width, espacio_restante_h / img_height)
-
-            new_width = int(img_width * escala)
-            new_height = int(img_height * escala)
-
-            x_img = area_x + int((area_w - new_width) / 2)
-            y_img = y_grafica
-
-            target = QRect(x_img, y_img, new_width, new_height)
-            source = pixmap.rect()
-
-            painter.drawPixmap(target, pixmap, source)
-
-        finally:
-            painter.end()
-
-        # =========================
-        # 2) Exportar JSON
-        # =========================
         registro = self.obtener_registro_completo()
-
         registro["signos_vitales_simulados"] = self.grafica.datos_sv
         registro["temperatura_simulada"] = self.grafica.datos_temp
 
@@ -1645,7 +1698,7 @@ class RegistroAnestesia(QWidget):
             self.nss.setText(str(paciente.get("nss", "")))
             self.edad.setText(str(paciente.get("edad", "")))
             self.sexo.setText(str(paciente.get("sexo", "")))
-            self.hgsz.setText(str(paciente.get("hgsz", "")))
+            self.unidad.setText(str(paciente.get("unidad", "")))
 
             # =========================
             # Cirugía
@@ -1741,12 +1794,13 @@ class RegistroAnestesia(QWidget):
         self.nss.clear()
         self.edad.clear()
         self.sexo.clear()
-        self.hgsz.clear()
+        self.unidad.clear()
 
         # Cirugía
         self.dx_pre.clear()
-        self.proc.clear()
+        self.cirugia_programada.clear()
         self.dx_op.clear()
+        self.cirugia_realizada.clear()
 
         # Medicamentos
         for inp in self.grafica.inputs_medicamentos:

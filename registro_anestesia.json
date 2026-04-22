@@ -1,167 +1,19 @@
 {
     "paciente": {
-        "nombre": "David Arvizo Huitron",
-        "nss": "3298825634",
-        "edad": "42",
-        "sexo": "Masculino",
-        "hgsz": "Sí"
+        "nombre": "",
+        "nss": "",
+        "edad": "",
+        "sexo": "",
+        "unidad": ""
     },
     "cirugia": {
-        "dx_pre": "Hernia inguinal derecha",
-        "procedimiento": "Plastia inguinal derecha",
-        "dx_post": "Hernia inguinal derecha"
+        "dx_pre": "esxtrdcytfvuygbiuh",
+        "cirugia_programada": "xercdtfuyvgbuh",
+        "dx_post": "wexrdctfvygbuh",
+        "cirugia_realizada": "xrdectfvygbuh"
     },
     "eventos": [],
-    "medicamentos": [
-        {
-            "fila": "A",
-            "medicamento": "Bupivacaína pesada",
-            "dosis_via": "15 mg IT"
-        },
-        {
-            "fila": "B",
-            "medicamento": "Morfina",
-            "dosis_via": "100 mcg IT"
-        }
-    ],
-    "signos_vitales_simulados": [
-        {
-            "col": 0,
-            "fc": 83,
-            "tas": 112,
-            "tad": 78,
-            "spo2": 97,
-            "fio2": 55,
-            "flujo": 2.5,
-            "sevo": 1.8
-        },
-        {
-            "col": 1,
-            "fc": 85,
-            "tas": 112,
-            "tad": 78,
-            "spo2": 96,
-            "fio2": 55,
-            "flujo": 3.0,
-            "sevo": 1.8
-        },
-        {
-            "col": 2,
-            "fc": 86,
-            "tas": 105,
-            "tad": 78,
-            "spo2": 95,
-            "fio2": 55,
-            "flujo": 3.0,
-            "sevo": 1.6
-        },
-        {
-            "col": 3,
-            "fc": 87,
-            "tas": 113,
-            "tad": 77,
-            "spo2": 96,
-            "fio2": 60,
-            "flujo": 3.5,
-            "sevo": 1.8
-        },
-        {
-            "col": 4,
-            "fc": 87,
-            "tas": 112,
-            "tad": 82,
-            "spo2": 96,
-            "fio2": 60,
-            "flujo": 3.5,
-            "sevo": 2.0
-        },
-        {
-            "col": 5,
-            "fc": 83,
-            "tas": 119,
-            "tad": 87,
-            "spo2": 95,
-            "fio2": 65,
-            "flujo": 4.0,
-            "sevo": 2.2
-        },
-        {
-            "col": 6,
-            "fc": 83,
-            "tas": 125,
-            "tad": 84,
-            "spo2": 94,
-            "fio2": 60,
-            "flujo": 4.0,
-            "sevo": 2.4
-        },
-        {
-            "col": 7,
-            "fc": 85,
-            "tas": 129,
-            "tad": 87,
-            "spo2": 95,
-            "fio2": 55,
-            "flujo": 4.5,
-            "sevo": 2.2
-        },
-        {
-            "col": 8,
-            "fc": 87,
-            "tas": 136,
-            "tad": 92,
-            "spo2": 96,
-            "fio2": 55,
-            "flujo": 5.0,
-            "sevo": 2.0
-        },
-        {
-            "col": 9,
-            "fc": 86,
-            "tas": 134,
-            "tad": 92,
-            "spo2": 97,
-            "fio2": 55,
-            "flujo": 5.0,
-            "sevo": 2.2
-        },
-        {
-            "col": 10,
-            "fc": 84,
-            "tas": 135,
-            "tad": 94,
-            "spo2": 98,
-            "fio2": 55,
-            "flujo": 5.0,
-            "sevo": 2.2
-        },
-        {
-            "col": 11,
-            "fc": 83,
-            "tas": 137,
-            "tad": 93,
-            "spo2": 98,
-            "fio2": 55,
-            "flujo": 5.5,
-            "sevo": 2.4
-        }
-    ],
-    "temperatura_simulada": [
-        {
-            "col": 0,
-            "temp": 36.6
-        },
-        {
-            "col": 3,
-            "temp": 36.5
-        },
-        {
-            "col": 6,
-            "temp": 36.6
-        },
-        {
-            "col": 9,
-            "temp": 36.7
-        }
-    ]
+    "medicamentos": [],
+    "signos_vitales_simulados": [],
+    "temperatura_simulada": []
 }
