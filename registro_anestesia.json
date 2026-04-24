@@ -1,19 +1,790 @@
 {
     "paciente": {
-        "nombre": "",
-        "nss": "",
-        "edad": "",
-        "sexo": "",
-        "unidad": ""
+        "nombre": "David Arvizo Huitron",
+        "nss": "3298823465-7",
+        "edad": "42 años",
+        "sexo": "Masculino",
+        "unidad": "HGZ #18"
     },
     "cirugia": {
-        "dx_pre": "esxtrdcytfvuygbiuh",
-        "cirugia_programada": "xercdtfuyvgbuh",
-        "dx_post": "wexrdctfvygbuh",
-        "cirugia_realizada": "xrdectfvygbuh"
+        "dx_pre": "Colecistitis aguda",
+        "cirugia_programada": "Colecistectomía laparoscópica",
+        "dx_post": "Úlcera gástrica perforada",
+        "cirugia_realizada": "Laparoscopía diagnóstica/Parche de Graham"
     },
     "eventos": [],
-    "medicamentos": [],
-    "signos_vitales_simulados": [],
-    "temperatura_simulada": []
+    "medicamentos": [
+        {
+            "fila": "A",
+            "medicamento": "Midazolam",
+            "dosis_via": "2 mg IV"
+        },
+        {
+            "fila": "B",
+            "medicamento": "Fentanilo",
+            "dosis_via": "500 µg IV"
+        },
+        {
+            "fila": "C",
+            "medicamento": "Propofol",
+            "dosis_via": "150 mg IV"
+        },
+        {
+            "fila": "D",
+            "medicamento": "Cisatracurio",
+            "dosis_via": "13 mg IV"
+        },
+        {
+            "fila": "E",
+            "medicamento": "Metamizol",
+            "dosis_via": "2 g IV"
+        },
+        {
+            "fila": "F",
+            "medicamento": "Ondansetrón",
+            "dosis_via": "8 mg IV"
+        }
+    ],
+    "signos_vitales_simulados": [
+        {
+            "col": 0,
+            "fc": 83,
+            "tas": 134,
+            "tad": 75,
+            "spo2": 99,
+            "fio2": 60,
+            "flujo": 2.5,
+            "sevo": 3.0
+        },
+        {
+            "col": 1,
+            "fc": 87,
+            "tas": 118,
+            "tad": 77,
+            "spo2": 99,
+            "fio2": 80,
+            "flujo": 3.0,
+            "sevo": 2.0
+        },
+        {
+            "col": 2,
+            "fc": 79,
+            "tas": 130,
+            "tad": 77,
+            "spo2": 100,
+            "fio2": 80,
+            "flujo": 2.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 3,
+            "fc": 66,
+            "tas": 140,
+            "tad": 85,
+            "spo2": 98,
+            "fio2": 50,
+            "flujo": 3.0,
+            "sevo": 3.0
+        },
+        {
+            "col": 4,
+            "fc": 60,
+            "tas": 125,
+            "tad": 84,
+            "spo2": 98,
+            "fio2": 75,
+            "flujo": 1.0,
+            "sevo": 3.0
+        },
+        {
+            "col": 5,
+            "fc": 61,
+            "tas": 121,
+            "tad": 76,
+            "spo2": 97,
+            "fio2": 50,
+            "flujo": 3.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 6,
+            "fc": 87,
+            "tas": 113,
+            "tad": 73,
+            "spo2": 100,
+            "fio2": 40,
+            "flujo": 3.0,
+            "sevo": 3.0
+        },
+        {
+            "col": 7,
+            "fc": 78,
+            "tas": 140,
+            "tad": 74,
+            "spo2": 100,
+            "fio2": 85,
+            "flujo": 1.5,
+            "sevo": 2.6
+        },
+        {
+            "col": 8,
+            "fc": 86,
+            "tas": 134,
+            "tad": 84,
+            "spo2": 100,
+            "fio2": 50,
+            "flujo": 1.0,
+            "sevo": 2.8
+        },
+        {
+            "col": 9,
+            "fc": 71,
+            "tas": 139,
+            "tad": 83,
+            "spo2": 97,
+            "fio2": 60,
+            "flujo": 2.5,
+            "sevo": 1.8
+        },
+        {
+            "col": 10,
+            "fc": 74,
+            "tas": 116,
+            "tad": 73,
+            "spo2": 97,
+            "fio2": 60,
+            "flujo": 1.5,
+            "sevo": 2.2
+        },
+        {
+            "col": 11,
+            "fc": 65,
+            "tas": 121,
+            "tad": 74,
+            "spo2": 97,
+            "fio2": 65,
+            "flujo": 1.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 12,
+            "fc": 85,
+            "tas": 126,
+            "tad": 87,
+            "spo2": 100,
+            "fio2": 40,
+            "flujo": 1.5,
+            "sevo": 2.6
+        },
+        {
+            "col": 13,
+            "fc": 70,
+            "tas": 139,
+            "tad": 80,
+            "spo2": 97,
+            "fio2": 50,
+            "flujo": 1.0,
+            "sevo": 2.8
+        },
+        {
+            "col": 14,
+            "fc": 60,
+            "tas": 116,
+            "tad": 75,
+            "spo2": 98,
+            "fio2": 40,
+            "flujo": 2.0,
+            "sevo": 2.4
+        },
+        {
+            "col": 15,
+            "fc": 90,
+            "tas": 122,
+            "tad": 74,
+            "spo2": 98,
+            "fio2": 70,
+            "flujo": 1.5,
+            "sevo": 2.4
+        },
+        {
+            "col": 16,
+            "fc": 89,
+            "tas": 120,
+            "tad": 70,
+            "spo2": 100,
+            "fio2": 70,
+            "flujo": 2.0,
+            "sevo": 2.4
+        },
+        {
+            "col": 17,
+            "fc": 60,
+            "tas": 133,
+            "tad": 75,
+            "spo2": 98,
+            "fio2": 80,
+            "flujo": 2.5,
+            "sevo": 2.6
+        },
+        {
+            "col": 18,
+            "fc": 76,
+            "tas": 123,
+            "tad": 79,
+            "spo2": 99,
+            "fio2": 40,
+            "flujo": 2.0,
+            "sevo": 1.8
+        },
+        {
+            "col": 19,
+            "fc": 86,
+            "tas": 127,
+            "tad": 88,
+            "spo2": 100,
+            "fio2": 40,
+            "flujo": 2.5,
+            "sevo": 2.0
+        },
+        {
+            "col": 20,
+            "fc": 86,
+            "tas": 111,
+            "tad": 74,
+            "spo2": 99,
+            "fio2": 70,
+            "flujo": 3.0,
+            "sevo": 1.8
+        },
+        {
+            "col": 21,
+            "fc": 72,
+            "tas": 118,
+            "tad": 74,
+            "spo2": 98,
+            "fio2": 50,
+            "flujo": 2.5,
+            "sevo": 2.4
+        },
+        {
+            "col": 22,
+            "fc": 81,
+            "tas": 128,
+            "tad": 87,
+            "spo2": 98,
+            "fio2": 65,
+            "flujo": 1.5,
+            "sevo": 2.6
+        },
+        {
+            "col": 23,
+            "fc": 77,
+            "tas": 121,
+            "tad": 90,
+            "spo2": 98,
+            "fio2": 80,
+            "flujo": 2.5,
+            "sevo": 2.4
+        },
+        {
+            "col": 24,
+            "fc": 83,
+            "tas": 139,
+            "tad": 79,
+            "spo2": 98,
+            "fio2": 75,
+            "flujo": 3.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 25,
+            "fc": 77,
+            "tas": 129,
+            "tad": 80,
+            "spo2": 100,
+            "fio2": 45,
+            "flujo": 3.0,
+            "sevo": 2.0
+        },
+        {
+            "col": 26,
+            "fc": 69,
+            "tas": 111,
+            "tad": 75,
+            "spo2": 99,
+            "fio2": 70,
+            "flujo": 3.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 27,
+            "fc": 80,
+            "tas": 129,
+            "tad": 85,
+            "spo2": 97,
+            "fio2": 60,
+            "flujo": 2.5,
+            "sevo": 3.0
+        },
+        {
+            "col": 28,
+            "fc": 76,
+            "tas": 135,
+            "tad": 87,
+            "spo2": 98,
+            "fio2": 50,
+            "flujo": 2.0,
+            "sevo": 2.8
+        },
+        {
+            "col": 29,
+            "fc": 67,
+            "tas": 131,
+            "tad": 89,
+            "spo2": 99,
+            "fio2": 85,
+            "flujo": 2.5,
+            "sevo": 3.0
+        },
+        {
+            "col": 30,
+            "fc": 77,
+            "tas": 126,
+            "tad": 79,
+            "spo2": 97,
+            "fio2": 80,
+            "flujo": 1.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 31,
+            "fc": 85,
+            "tas": 134,
+            "tad": 86,
+            "spo2": 100,
+            "fio2": 70,
+            "flujo": 1.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 32,
+            "fc": 64,
+            "tas": 119,
+            "tad": 73,
+            "spo2": 98,
+            "fio2": 65,
+            "flujo": 1.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 33,
+            "fc": 78,
+            "tas": 113,
+            "tad": 88,
+            "spo2": 97,
+            "fio2": 80,
+            "flujo": 3.0,
+            "sevo": 3.0
+        },
+        {
+            "col": 34,
+            "fc": 63,
+            "tas": 140,
+            "tad": 89,
+            "spo2": 98,
+            "fio2": 60,
+            "flujo": 1.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 35,
+            "fc": 88,
+            "tas": 118,
+            "tad": 82,
+            "spo2": 97,
+            "fio2": 75,
+            "flujo": 3.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 36,
+            "fc": 61,
+            "tas": 125,
+            "tad": 74,
+            "spo2": 100,
+            "fio2": 75,
+            "flujo": 2.0,
+            "sevo": 2.8
+        },
+        {
+            "col": 37,
+            "fc": 88,
+            "tas": 115,
+            "tad": 88,
+            "spo2": 97,
+            "fio2": 60,
+            "flujo": 2.0,
+            "sevo": 1.8
+        },
+        {
+            "col": 38,
+            "fc": 71,
+            "tas": 118,
+            "tad": 74,
+            "spo2": 97,
+            "fio2": 85,
+            "flujo": 1.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 39,
+            "fc": 62,
+            "tas": 120,
+            "tad": 90,
+            "spo2": 97,
+            "fio2": 70,
+            "flujo": 2.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 40,
+            "fc": 71,
+            "tas": 134,
+            "tad": 71,
+            "spo2": 98,
+            "fio2": 65,
+            "flujo": 2.0,
+            "sevo": 1.8
+        },
+        {
+            "col": 41,
+            "fc": 71,
+            "tas": 112,
+            "tad": 76,
+            "spo2": 99,
+            "fio2": 85,
+            "flujo": 3.0,
+            "sevo": 2.8
+        },
+        {
+            "col": 42,
+            "fc": 81,
+            "tas": 130,
+            "tad": 75,
+            "spo2": 97,
+            "fio2": 85,
+            "flujo": 2.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 43,
+            "fc": 90,
+            "tas": 135,
+            "tad": 71,
+            "spo2": 97,
+            "fio2": 50,
+            "flujo": 1.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 44,
+            "fc": 87,
+            "tas": 133,
+            "tad": 74,
+            "spo2": 99,
+            "fio2": 60,
+            "flujo": 2.0,
+            "sevo": 2.8
+        },
+        {
+            "col": 45,
+            "fc": 60,
+            "tas": 120,
+            "tad": 80,
+            "spo2": 98,
+            "fio2": 70,
+            "flujo": 2.5,
+            "sevo": 2.8
+        },
+        {
+            "col": 46,
+            "fc": 70,
+            "tas": 133,
+            "tad": 86,
+            "spo2": 97,
+            "fio2": 85,
+            "flujo": 1.5,
+            "sevo": 2.2
+        },
+        {
+            "col": 47,
+            "fc": 81,
+            "tas": 136,
+            "tad": 72,
+            "spo2": 98,
+            "fio2": 85,
+            "flujo": 3.0,
+            "sevo": 2.6
+        }
+    ],
+    "temperatura_simulada": [
+        {
+            "col": 0,
+            "temp": 36.8
+        },
+        {
+            "col": 3,
+            "temp": 37.0
+        },
+        {
+            "col": 6,
+            "temp": 36.7
+        },
+        {
+            "col": 9,
+            "temp": 36.6
+        },
+        {
+            "col": 12,
+            "temp": 36.3
+        },
+        {
+            "col": 15,
+            "temp": 36.7
+        },
+        {
+            "col": 18,
+            "temp": 36.2
+        },
+        {
+            "col": 21,
+            "temp": 36.6
+        },
+        {
+            "col": 24,
+            "temp": 36.6
+        },
+        {
+            "col": 27,
+            "temp": 36.7
+        },
+        {
+            "col": 30,
+            "temp": 36.8
+        },
+        {
+            "col": 33,
+            "temp": 36.6
+        },
+        {
+            "col": 36,
+            "temp": 36.3
+        },
+        {
+            "col": 39,
+            "temp": 36.5
+        },
+        {
+            "col": 42,
+            "temp": 36.7
+        },
+        {
+            "col": 45,
+            "temp": 37.2
+        }
+    ],
+    "respiracion_simulada": [
+        {
+            "col": 0,
+            "modo": "C"
+        },
+        {
+            "col": 1,
+            "modo": "C"
+        },
+        {
+            "col": 2,
+            "modo": "C"
+        },
+        {
+            "col": 3,
+            "modo": "C"
+        },
+        {
+            "col": 4,
+            "modo": "C"
+        },
+        {
+            "col": 5,
+            "modo": "C"
+        },
+        {
+            "col": 6,
+            "modo": "C"
+        },
+        {
+            "col": 7,
+            "modo": "C"
+        },
+        {
+            "col": 8,
+            "modo": "A"
+        },
+        {
+            "col": 9,
+            "modo": "A"
+        },
+        {
+            "col": 10,
+            "modo": "E"
+        },
+        {
+            "col": 11,
+            "modo": "E"
+        },
+        {
+            "col": 12,
+            "modo": "E"
+        },
+        {
+            "col": 13,
+            "modo": "E"
+        },
+        {
+            "col": 14,
+            "modo": "E"
+        },
+        {
+            "col": 15,
+            "modo": "E"
+        },
+        {
+            "col": 16,
+            "modo": "E"
+        },
+        {
+            "col": 17,
+            "modo": "E"
+        },
+        {
+            "col": 18,
+            "modo": "E"
+        },
+        {
+            "col": 19,
+            "modo": "E"
+        },
+        {
+            "col": 20,
+            "modo": "E"
+        },
+        {
+            "col": 21,
+            "modo": "E"
+        },
+        {
+            "col": 22,
+            "modo": "E"
+        },
+        {
+            "col": 23,
+            "modo": "E"
+        },
+        {
+            "col": 24,
+            "modo": "E"
+        },
+        {
+            "col": 25,
+            "modo": "E"
+        },
+        {
+            "col": 26,
+            "modo": "E"
+        },
+        {
+            "col": 27,
+            "modo": "E"
+        },
+        {
+            "col": 28,
+            "modo": "E"
+        },
+        {
+            "col": 29,
+            "modo": "E"
+        },
+        {
+            "col": 30,
+            "modo": "E"
+        },
+        {
+            "col": 31,
+            "modo": "E"
+        },
+        {
+            "col": 32,
+            "modo": "E"
+        },
+        {
+            "col": 33,
+            "modo": "E"
+        },
+        {
+            "col": 34,
+            "modo": "E"
+        },
+        {
+            "col": 35,
+            "modo": "E"
+        },
+        {
+            "col": 36,
+            "modo": "E"
+        },
+        {
+            "col": 37,
+            "modo": "E"
+        },
+        {
+            "col": 38,
+            "modo": "E"
+        },
+        {
+            "col": 39,
+            "modo": "E"
+        },
+        {
+            "col": 40,
+            "modo": "E"
+        },
+        {
+            "col": 41,
+            "modo": "E"
+        },
+        {
+            "col": 42,
+            "modo": "E"
+        },
+        {
+            "col": 43,
+            "modo": "E"
+        },
+        {
+            "col": 44,
+            "modo": "E"
+        },
+        {
+            "col": 45,
+            "modo": "E"
+        },
+        {
+            "col": 46,
+            "modo": "E"
+        },
+        {
+            "col": 47,
+            "modo": "E"
+        }
+    ]
 }

@@ -95,9 +95,10 @@ class GraficaAnestesia(QWidget):
 
         self.datos_sv = []
         self.columna_actual = 0
-        self.max_columnas = 12  # 00,05,10,...55
+        self.max_columnas = 72  # 00,05,10,...55
         self.velocidad_sim_ms = 2000
         self.datos_temp = []
+        self.datos_resp = []   # {"col": int, "modo": "C"|"A"|"E"}
 
         self.timer_sv = QTimer(self)
         self.timer_sv.timeout.connect(self.agregar_dato_simulado)
@@ -451,6 +452,17 @@ class GraficaAnestesia(QWidget):
 
             self.inputs_medicamentos.append(inp_med)
             self.inputs_dosis_via.append(inp_dosis)
+
+    def obtener_total_columnas_dibujo(self):
+        columnas_minimas = 36
+
+        cols_sv = [d.get("col", 0) for d in self.datos_sv]
+        cols_temp = [d.get("col", 0) for d in self.datos_temp]
+        cols_resp = [d.get("col", 0) for d in self.datos_resp]
+
+        max_col = max(cols_sv + cols_temp + cols_resp + [columnas_minimas - 1])
+
+        return max(columnas_minimas, max_col + 1)
             
     def normalizar_unidades(self, texto):
         return (
@@ -768,8 +780,15 @@ class GraficaAnestesia(QWidget):
         painter.drawRect(x0, y0, ancho_grafica, alto_grafica)
 
         # Cuadrícula
-        num_columnas = 36
-        ancho_col = ancho_grafica / num_columnas
+        num_columnas = self.obtener_total_columnas_dibujo()
+        ancho_col = 35  # ancho fijo por columna en pantalla
+
+        ancho_grafica = num_columnas * ancho_col
+        x1 = x0 + ancho_grafica
+
+        nuevo_ancho_minimo = int(x1 + margen_der + 40)
+        if self.minimumWidth() != nuevo_ancho_minimo:
+            self.setMinimumWidth(nuevo_ancho_minimo)
 
         painter.setPen(QPen(QColor(180, 180, 180), 1))
         for i in range(1, num_columnas):
@@ -1210,8 +1229,10 @@ class GraficaAnestesia(QWidget):
         y1 = alto - margen_inf
 
         ancho_grafica = x1 - x0
-        num_columnas = 36
-        ancho_col = ancho_grafica / num_columnas
+        num_columnas = self.obtener_total_columnas_dibujo()
+        ancho_col = 35
+        ancho_grafica = num_columnas * ancho_col
+        x1 = x0 + ancho_grafica
 
         painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -1291,6 +1312,24 @@ class GraficaAnestesia(QWidget):
             "sevo": sevo,
         })
 
+        if not self.datos_resp:
+            modo_base = "C"
+        else:
+            modo_base = self.datos_resp[-1]["modo"]
+
+        # simulación simple
+        if self.columna_actual < 8:
+            modo = "C"
+        elif self.columna_actual < 10:
+            modo = "A"
+        else:
+            modo = "E"
+
+        self.datos_resp.append({
+            "col": self.columna_actual,
+            "modo": modo
+        })
+
         if self.columna_actual % 3 == 0:
             if not self.datos_temp:
                 temp_base = 36.5
@@ -1330,8 +1369,10 @@ class GraficaAnestesia(QWidget):
         y1 = alto - margen_inf
 
         ancho_grafica = x1 - x0
-        num_columnas = 36
-        ancho_col = ancho_grafica / num_columnas
+        num_columnas = self.obtener_total_columnas_dibujo()
+        ancho_col = 35
+        ancho_grafica = num_columnas * ancho_col
+        x1 = x0 + ancho_grafica
 
         for d in self.datos_sv:
             col = d["col"]
@@ -1385,8 +1426,10 @@ class GraficaAnestesia(QWidget):
         x1 = ancho - margen_der
 
         ancho_grafica = x1 - x0
-        num_columnas = 36
-        ancho_col = ancho_grafica / num_columnas
+        num_columnas = self.obtener_total_columnas_dibujo()
+        ancho_col = 35
+        ancho_grafica = num_columnas * ancho_col
+        x1 = x0 + ancho_grafica
 
         alto_fila_ag = 20
         alto_franja_minutos = 16
@@ -1431,6 +1474,8 @@ class GraficaAnestesia(QWidget):
         self.timer_sv.stop()
         self.datos_sv = []
         self.datos_temp = []
+        self.datos_resp = []
+        self.datos_resp = []
         self.columna_actual = 0
         self.btn_iniciar_sv.setEnabled(True)
         self.btn_pausar_sv.setEnabled(False)
@@ -1587,7 +1632,10 @@ class RegistroAnestesia(QWidget):
 
         self.btn_pdf = QPushButton("Guardar PDF")
         self.btn_pdf.clicked.connect(lambda: exportar_a_pdf_imss(self))
+
         container_layout.addWidget(self.btn_nuevo)
+
+        self.cargar_demo()
 
         self.setLayout(layout)
         
@@ -1612,6 +1660,101 @@ class RegistroAnestesia(QWidget):
         }
 
         return registro
+    
+    def cargar_demo(self):
+        # =========================
+        # Datos del paciente
+        # =========================
+        self.nombre.setText("David Arvizo Huitron")
+        self.nss.setText("3298823465-7")
+        self.edad.setText("42 años")
+        self.sexo.setText("Masculino")
+        self.unidad.setText("HGZ #18")
+
+        # =========================
+        # Datos quirúrgicos
+        # =========================
+        self.dx_pre.setText("Colecistitis aguda")
+        self.cirugia_programada.setText("Colecistectomía laparoscópica")
+        self.dx_op.setText("Úlcera gástrica perforada")
+        self.cirugia_realizada.setText("Laparoscopía diagnóstica/Parche de Graham")
+
+        # =========================
+        # Medicamentos demo
+        # =========================
+        meds_demo = [
+            ("A", "Midazolam", "2 mg IV"),
+            ("B", "Fentanilo", "500 µg IV"),
+            ("C", "Propofol", "150 mg IV"),
+            ("D", "Cisatracurio", "13 mg IV"),
+            ("E", "Metamizol", "2 g IV"),
+            ("F", "Ondansetrón", "8 mg IV"),
+        ]
+
+        for inp in self.grafica.inputs_medicamentos:
+            inp.clear()
+        for inp in self.grafica.inputs_dosis_via:
+            inp.clear()
+
+        for fila, med, dosis in meds_demo:
+            idx = ord(fila) - ord("A")
+            if 0 <= idx < len(self.grafica.inputs_medicamentos):
+                self.grafica.inputs_medicamentos[idx].setText(med)
+                self.grafica.inputs_dosis_via[idx].setText(dosis)
+
+        # =========================
+        # Signos vitales demo
+        # =========================
+        self.grafica.datos_sv = []
+        self.grafica.datos_temp = []
+        self.grafica.datos_resp = []
+        self.grafica.columna_actual = 0
+
+        import random
+
+        # 12 columnas = 60 min
+        for i in range(48):
+            tas = random.randint(110, 140)
+            tad = random.randint(70, 90)
+            fc = random.randint(60, 90)
+            spo2 = random.randint(97, 100)
+            fio2 = random.choice([40, 45, 50, 55, 60, 65, 70, 75, 80, 85])
+            flujo = random.choice([1.0, 1.5, 2.0, 2.5, 3.0])
+            sevo = random.choice([1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0])
+
+            self.grafica.datos_sv.append({
+                "col": i,
+                "fc": fc,
+                "tas": tas,
+                "tad": tad,
+                "spo2": spo2,
+                "fio2": fio2,
+                "flujo": flujo,
+                "sevo": sevo,
+            })
+
+            # temperatura cada 15 min
+            if i % 3 == 0:
+                self.grafica.datos_temp.append({
+                    "col": i,
+                    "temp": round(36.2 + random.random() * 1.0, 1)
+                })
+
+            # respiración demo
+            if i < 8:
+                modo = "C"
+            elif i < 10:
+                modo = "A"
+            else:
+                modo = "E"
+
+            self.grafica.datos_resp.append({
+                "col": i,
+                "modo": modo
+            })
+
+        self.grafica.columna_actual = len(self.grafica.datos_sv)
+        self.grafica.update()
     
     def mostrar_registro(self):
         registro = self.obtener_registro_completo()
@@ -1644,6 +1787,7 @@ class RegistroAnestesia(QWidget):
         registro = self.obtener_registro_completo()
         registro["signos_vitales_simulados"] = self.grafica.datos_sv
         registro["temperatura_simulada"] = self.grafica.datos_temp
+        registro["respiracion_simulada"] = self.grafica.datos_resp
 
         eventos_limpios = []
         for evento in self.grafica.eventos_registrados:
@@ -1760,6 +1904,7 @@ class RegistroAnestesia(QWidget):
             # =========================
             self.grafica.datos_sv = data.get("signos_vitales_simulados", [])
             self.grafica.datos_temp = data.get("temperatura_simulada", [])
+            self.grafica.datos_resp = data.get("respiracion_simulada", [])
 
             # Ajustar columna actual para continuar desde el último punto
             if self.grafica.datos_sv:
@@ -1816,6 +1961,7 @@ class RegistroAnestesia(QWidget):
         # Gráfica
         self.grafica.datos_sv = []
         self.grafica.datos_temp = []
+        self.grafica.datos_resp = []
         self.grafica.columna_actual = 0
 
         self.grafica.timer_sv.stop()
