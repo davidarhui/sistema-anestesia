@@ -2,7 +2,7 @@ import sys
 import random
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, QCompleter
+    QVBoxLayout, QHBoxLayout, QGridLayout, QComboBox, QCompleter, QFormLayout
 )
 from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont, QPalette
 from PyQt6.QtCore import Qt, QPointF, QRect, QTimer
@@ -1562,6 +1562,8 @@ class RegistroAnestesia(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
 
+        scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+
         container = QWidget()
         container_layout = QVBoxLayout(container)
 
@@ -1572,45 +1574,62 @@ class RegistroAnestesia(QWidget):
         header.setStyleSheet("font-size: 18px; font-weight: bold;")
         container_layout.addWidget(header)
 
-        grid = QGridLayout()
+        grid = QFormLayout()
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
+        grid.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        grid.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        grid.addWidget(QLabel("Nombre:"), 0, 0)
+        ANCHO_CAMPO = 320
+        ANCHO_CORTO = 120
+
         self.nombre = QLineEdit()
-        grid.addWidget(self.nombre, 0, 1)
+        self.nombre.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Nombre:", self.nombre)
 
-        grid.addWidget(QLabel("NSS:"), 0, 2)
         self.nss = QLineEdit()
-        grid.addWidget(self.nss, 0, 3)
+        self.nss.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("NSS:", self.nss)
 
-        grid.addWidget(QLabel("Edad:"), 1, 0)
         self.edad = QLineEdit()
-        grid.addWidget(self.edad, 1, 1)
+        self.edad.setFixedWidth(ANCHO_CORTO)
+        grid.addRow("Edad:", self.edad)
 
-        grid.addWidget(QLabel("Sexo:"), 1, 2)
         self.sexo = QLineEdit()
-        grid.addWidget(self.sexo, 1, 3)
+        self.sexo.setFixedWidth(ANCHO_CORTO)
+        grid.addRow("Sexo:", self.sexo)
 
-        grid.addWidget(QLabel("Unidad:"), 1, 4)
         self.unidad = QLineEdit()
-        grid.addWidget(self.unidad, 1, 5)
+        self.unidad.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Unidad:", self.unidad)
 
-        grid.addWidget(QLabel("Diagnóstico preoperatorio:"), 2, 0)
         self.dx_pre = QLineEdit()
-        grid.addWidget(self.dx_pre, 2, 1, 1, 5)
+        self.dx_pre.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Diagnóstico preoperatorio:", self.dx_pre)
 
-        grid.addWidget(QLabel("Cirugía programada:"), 3, 0)
         self.cirugia_programada = QLineEdit()
-        grid.addWidget(self.cirugia_programada, 3, 1, 1, 5)
+        self.cirugia_programada.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Cirugía programada:", self.cirugia_programada)
 
-        grid.addWidget(QLabel("Diagnóstico operatorio:"), 4, 0)
-        self.dx_op = QLineEdit()
-        grid.addWidget(self.dx_op, 4, 1, 1, 5)
+        self.dx_post = QLineEdit()
+        self.dx_post.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Diagnóstico postoperatorio:", self.dx_post)
 
-        grid.addWidget(QLabel("Cirugía realizada:"), 5, 0)
         self.cirugia_realizada = QLineEdit()
-        grid.addWidget(self.cirugia_realizada, 5, 1, 1, 5)
+        self.cirugia_realizada.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Cirugía realizada:", self.cirugia_realizada)
+
+        self.anestesiologo = QLineEdit()
+        self.anestesiologo.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Anestesiólogo:", self.anestesiologo)
+
+        self.cirujano = QLineEdit()
+        self.cirujano.setFixedWidth(ANCHO_CAMPO)
+        grid.addRow("Cirujano:", self.cirujano)
 
         container_layout.addLayout(grid)
+
+        container_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
         self.grafica = GraficaAnestesia()
         container_layout.addWidget(self.grafica)
@@ -1652,8 +1671,10 @@ class RegistroAnestesia(QWidget):
         "cirugia": {
             "dx_pre": self.dx_pre.text(),
             "cirugia_programada": self.cirugia_programada.text(),
-            "dx_post": self.dx_op.text(),
-            "cirugia_realizada": self.cirugia_realizada.text()
+            "dx_post": self.dx_post.text(),
+            "cirugia_realizada": self.cirugia_realizada.text(),
+            "anestesiologo": self.anestesiologo.text(),
+            "cirujano": self.cirujano.text()
         },
             "eventos": self.grafica.eventos_registrados,
             "medicamentos": self.grafica.obtener_medicamentos_registrados()
@@ -1665,7 +1686,7 @@ class RegistroAnestesia(QWidget):
         # =========================
         # Datos del paciente
         # =========================
-        self.nombre.setText("David Arvizo Huitron")
+        self.nombre.setText("Juan Perez García")
         self.nss.setText("3298823465-7")
         self.edad.setText("42 años")
         self.sexo.setText("Masculino")
@@ -1676,8 +1697,10 @@ class RegistroAnestesia(QWidget):
         # =========================
         self.dx_pre.setText("Colecistitis aguda")
         self.cirugia_programada.setText("Colecistectomía laparoscópica")
-        self.dx_op.setText("Úlcera gástrica perforada")
+        self.dx_post.setText("Úlcera gástrica perforada")
         self.cirugia_realizada.setText("Laparoscopía diagnóstica/Parche de Graham")
+        self.anestesiologo.setText("Dr. David Arvizo Huitron")
+        self.cirujano.setText("Dr. Germán Felipe Wong Sánchez-Espino")
 
         # =========================
         # Medicamentos demo
@@ -1849,8 +1872,11 @@ class RegistroAnestesia(QWidget):
             # =========================
             cirugia = data.get("cirugia", {})
             self.dx_pre.setText(str(cirugia.get("dx_pre", "")))
-            self.proc.setText(str(cirugia.get("procedimiento", "")))
-            self.dx_op.setText(str(cirugia.get("dx_post", "")))
+            self.cirugia_programada.setText(str(cirugia.get("cirugia_programada", "")))
+            self.dx_post.setText(str(cirugia.get("dx_post", "")))
+            self.cirugia_realizada.setText(str(cirugia.get("cirugia_realizada", "")))
+            self.anestesiologo.setText(str(cirugia.get("anestesiologo", "")))
+            self.cirujano.setText(str(cirugia.get("cirujano", "")))
 
             # =========================
             # Medicamentos
@@ -1944,8 +1970,12 @@ class RegistroAnestesia(QWidget):
         # Cirugía
         self.dx_pre.clear()
         self.cirugia_programada.clear()
-        self.dx_op.clear()
+        self.dx_post.clear()
         self.cirugia_realizada.clear()
+
+        # Medicos
+        self.anestesiologo.clear()
+        self.cirujano.clear()
 
         # Medicamentos
         for inp in self.grafica.inputs_medicamentos:

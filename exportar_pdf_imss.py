@@ -111,6 +111,42 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             painter.setPen(QPen(Qt.GlobalColor.black, 1))
             painter.drawLine(text_x, y + mm(1.0), x + total_w, y + mm(1.0))
 
+        def draw_medico_field(x, y, label, valor, label_w, total_w):
+            painter.setFont(font_label)
+            painter.drawText(x, y, label)
+
+            text_x = x + label_w
+            text_w = total_w - label_w
+
+            painter.setFont(font_text)
+            texto = str(valor)
+
+            # Calcula cuántas líneas podría necesitar
+            fm = painter.fontMetrics()
+            rect_calc = fm.boundingRect(
+                QRect(0, 0, text_w, mm(30)),
+                Qt.TextFlag.TextWordWrap,
+                texto
+            )
+
+            alto_texto = max(mm(6), rect_calc.height() + mm(1))
+            offset_y = mm(4.0)
+
+            rect = QRect(text_x, y - offset_y, text_w, alto_texto)
+
+            painter.drawText(
+                rect,
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap,
+                texto
+            )
+
+            linea_y = y + alto_texto - mm(5)
+
+            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.drawLine(text_x, linea_y, x + total_w, linea_y)
+
+            return linea_y
+
         def draw_wrapped_field(x, y, label, valor, x_texto_fijo, total_w):
             painter.setFont(font_label)
             painter.drawText(x, y, label)
@@ -281,7 +317,34 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         y = linea_y + mm(6)
 
         linea_y = draw_wrapped_field(area_x, y, "Cirugía realizada:", cirugia["cirugia_realizada"], x_texto_dx_cx, area_w)
-        y = linea_y + mm(8)
+        y = linea_y + mm(6)
+
+        # SIN espacio extra arriba
+        x_anest = area_x
+        x_cirujano = area_x + int(area_w * 0.50)
+
+        w_anest_total = x_cirujano - x_anest - mm(6)
+        w_cirujano_total = area_x + area_w - x_cirujano
+
+        linea_anest = draw_medico_field(
+            x_anest,
+            y,
+            "Anestesiólogo:",
+            cirugia.get("anestesiologo", ""),
+            mm(28),
+            w_anest_total
+        )
+
+        linea_cirujano = draw_medico_field(
+            x_cirujano,
+            y,
+            "Cirujano:",
+            cirugia.get("cirujano", ""),
+            mm(18),
+            w_cirujano_total
+        )
+
+        y = max(linea_anest, linea_cirujano) + mm(6)
 
         y_inicio_grafica = y
 
@@ -323,6 +386,14 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
             num_columnas = columnas_por_pagina
             ancho_col = w_grid / num_columnas
+
+            # Reducir densidad si columnas están muy comprimidas
+            if ancho_col < mm(3):
+                mostrar_agentes_cada = 3   # cada 15 min
+            elif ancho_col < mm(4):
+                mostrar_agentes_cada = 2   # cada 10 min
+            else:
+                mostrar_agentes_cada = 1   # cada 5 min normal
 
             y = y_inicio_grafica
 
@@ -400,6 +471,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                             Qt.AlignmentFlag.AlignRight, "SpO₂")
 
             painter.setFont(font_micro)
+
             for d in graf.datos_sv:
                 col_global = d.get("col", 0)
 
@@ -407,8 +479,13 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     continue
 
                 col = col_global - col_inicio
+
+                if col % mostrar_agentes_cada != 0:
+                    continue
+
                 x_centro = x_grid + col * ancho_col + (ancho_col / 2)
 
+                
                 painter.drawText(QRect(int(x_centro - mm(2.5)), int(y_sevo - mm(1.5)), mm(5), mm(3)),
                                 Qt.AlignmentFlag.AlignCenter, f'{d["sevo"]:.1f}')
                 painter.drawText(QRect(int(x_centro - mm(2.5)), int(y_flujo - mm(1.5)), mm(5), mm(3)),
@@ -673,7 +750,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 # =========================
                 # TABLA DE MEDICAMENTOS
                 # =========================
-                y_tabla = y_eventos_abajo + mm(4)
+                y_tabla = y_sv_bottom + mm(10)
 
                 x_letra = area_x + mm(1)
                 w_letra = mm(7)
