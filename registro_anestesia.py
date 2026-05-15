@@ -13,6 +13,7 @@ from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt6.QtGui import QPageSize
 from PyQt6.QtWidgets import QFileDialog
 from PyQt6.QtCore import QStringListModel
+from PyQt6.QtWidgets import QRadioButton, QButtonGroup, QStackedWidget, QSizePolicy, QCheckBox
 from exportar_pdf_imss import exportar_a_pdf_imss
 import json
 
@@ -88,6 +89,187 @@ class LineEditConSufijo(QLineEdit):
     def focusOutEvent(self, event):
         self.convertir_a_texto_final()
         super().focusOutEvent(event)
+
+class CuadriculaSV(QWidget):
+    def __init__(self, grafica_padre):
+        super().__init__()
+        self.grafica = grafica_padre
+
+        self.ancho_col = 35
+        self.num_columnas = 72
+        self.alto_agentes = 80
+        self.alto_minutos = 16
+        self.alto_sv = 380
+
+        self.setFixedSize(
+            self.num_columnas * self.ancho_col,
+            self.alto_agentes + self.alto_minutos + self.alto_sv
+        )
+
+        self.setStyleSheet("background-color: white;")
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor("white"))
+
+        x0 = 0
+        y_ag_top = 0
+        y_ag_bottom = y_ag_top + self.alto_agentes
+        y_min_top = y_ag_bottom
+        y_min_bottom = y_min_top + self.alto_minutos
+        y_sv_top = y_min_bottom
+        y_sv_bottom = y_sv_top + self.alto_sv
+
+        x1 = self.width()
+        ancho_col = self.ancho_col
+        num_columnas = self.num_columnas
+
+        # =========================
+        # AGENTES
+        # =========================
+        alto_fila_ag = self.alto_agentes / 4
+
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.drawRect(x0, y_ag_top, x1 - x0, self.alto_agentes)
+
+        painter.setPen(QPen(QColor(180, 180, 180), 1))
+        for j in range(1, 4):
+            y = int(y_ag_top + j * alto_fila_ag)
+            painter.drawLine(x0, y, x1, y)
+
+        for i in range(1, num_columnas):
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+
+        painter.setPen(QPen(QColor(120, 120, 120), 2))
+        for i in range(0, num_columnas + 1, 3):
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+
+        # =========================
+        # MINUTOS / HORAS
+        # =========================
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.drawLine(x0, y_min_top, x1, y_min_top)
+        painter.drawLine(x0, y_min_bottom, x1, y_min_bottom)
+
+        font_hora = QFont("Arial", 9, QFont.Weight.Bold)
+        font_min = QFont("Arial", 8)
+
+        painter.setFont(font_hora)
+
+        hora_base = self.grafica.hora_base_rejilla
+
+        if hora_base is not None:
+            # Hora cero
+            painter.drawText(x0 + 2, y_min_top + 12, hora_base.strftime("%H"))
+
+            for i in range(1, num_columnas + 1):
+                minuto_total = i * 5
+                x = int(x0 + i * ancho_col)
+
+                if minuto_total % 60 == 0:
+                    hora = hora_base.replace(hour=(hora_base.hour + minuto_total // 60) % 24)
+                    texto = hora.strftime("%H")
+
+                    painter.setFont(font_hora)
+                    painter.drawText(x - 8, y_min_top + 12, texto)
+
+                elif minuto_total % 15 == 0:
+                    minuto = minuto_total % 60
+                    painter.setFont(font_min)
+                    painter.drawText(x - 8, y_min_top + 12, str(minuto))
+        else:
+            for i in range(num_columnas):
+                minuto_real = (i + 1) * 5
+
+                if minuto_real % 15 == 0:
+                    minuto_etiqueta = minuto_real % 60
+                    if minuto_etiqueta == 0:
+                        minuto_etiqueta = 60
+
+                    x = int(x0 + (i + 1) * ancho_col)
+                    painter.drawText(x - 8, y_min_top + 12, str(minuto_etiqueta))
+
+        # =========================
+        # CUADRÍCULA SV
+        # =========================
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+
+        # Borde SV sin línea inferior, para que no se empalme con el scroll horizontal
+        painter.drawLine(x0, y_sv_top, x1, y_sv_top)        # superior
+        painter.drawLine(x0, y_sv_top, x0, y_sv_bottom)     # izquierdo
+        painter.drawLine(x1, y_sv_top, x1, y_sv_bottom)     # derecho
+        # painter.drawLine(x0, y_sv_bottom, x1, y_sv_bottom)  # inferior desactivado
+
+        num_filas = 20
+        alto_fila = self.alto_sv / num_filas
+
+        for j in range(1, num_filas):
+            y = int(y_sv_top + j * alto_fila)
+
+            if j % 2 == 0:
+                painter.setPen(QPen(QColor(130, 130, 130), 1))
+            else:
+                painter.setPen(QPen(QColor(200, 200, 200), 1))
+
+            painter.drawLine(x0, y, x1, y)
+
+        painter.setPen(QPen(QColor(180, 180, 180), 1))
+        for i in range(1, num_columnas):
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_sv_top, x, y_sv_bottom)
+
+        painter.setPen(QPen(QColor(120, 120, 120), 2))
+        for i in range(0, num_columnas + 1, 3):
+            x = int(x0 + i * ancho_col)
+            painter.drawLine(x, y_sv_top, x, y_sv_bottom)
+
+        # =========================
+        # MARCAS DE MEDICAMENTOS
+        # =========================
+        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        alto_fila_med = alto_fila
+
+        for i, letra in enumerate(self.grafica.filas_meds):
+            if i >= len(self.grafica.inputs_medicamentos):
+                continue
+
+            if not self.grafica.inputs_medicamentos[i].text().strip():
+                continue
+
+            y = y_sv_top + i * alto_fila_med
+            painter.drawText(
+                QRect(int(x0 + 2), int(y), int(ancho_col - 4), int(alto_fila_med)),
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                letra
+            )
+
+        painter.setBrush(QColor(70, 70, 70))
+
+        for marca in self.grafica.marcas_medicamentos:
+            letra = marca["letra"]
+            col = marca["col"]
+
+            if letra not in self.grafica.filas_meds:
+                continue
+
+            fila = self.grafica.filas_meds.index(letra)
+
+            x = x0 + col * ancho_col
+            y = y_sv_top + fila * alto_fila_med
+
+            puntos = QPolygonF([
+                QPointF(x + ancho_col, y),
+                QPointF(x + ancho_col, y + alto_fila_med),
+                QPointF(x + ancho_col / 2, y + alto_fila_med),
+            ])
+
+            painter.drawPolygon(puntos)
         
 class GraficaAnestesia(QWidget):
     def __init__(self):
@@ -119,7 +301,7 @@ class GraficaAnestesia(QWidget):
 
         self.inputs_tiempos = []
 
-        self.setMinimumHeight(900)
+        self.setFixedSize(1400, 1120)
 
         self.botones_eventos = []
 
@@ -301,6 +483,7 @@ class GraficaAnestesia(QWidget):
 
         self.eventos_registrados = []   # lista de eventos: {"hora": ..., "numero": ...}
         self.hora_inicio = datetime.now()
+        self.hora_base_rejilla = None
         
         self.actualizar_estado_botones()
 
@@ -419,14 +602,74 @@ class GraficaAnestesia(QWidget):
             "Tramadol": "mg IV",
             "Vecuronio": "mg IV",
         }
-        self.setMinimumSize(1400, 900)
+        self.marcas_medicamentos = []
+        self.botones_medicamentos = []
+        self.setMinimumSize(1400, 1120)
+        self.cuadricula_sv = CuadriculaSV(self)
+        self.scroll_cuadricula = QScrollArea(self)
+        self.scroll_cuadricula.setWidgetResizable(False)
+        self.scroll_cuadricula.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_cuadricula.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_cuadricula.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.scroll_cuadricula.setLineWidth(0)
+        self.scroll_cuadricula.setMidLineWidth(0)
+        self.scroll_cuadricula.viewport().setStyleSheet("background: transparent; border: none;")
+        self.scroll_cuadricula.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+            QScrollBar:horizontal {
+                background: transparent;
+                height: 8px;
+                margin: 0px 18px 0px 18px;
+            }
 
+            QScrollBar::handle:horizontal {
+                background: rgba(90, 90, 90, 110);
+                border-radius: 4px;
+                min-width: 60px;
+            }
+
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {
+                border: none;
+                background: none;
+                width: 0px;
+            }
+
+            QScrollBar::add-page:horizontal,
+            QScrollBar::sub-page:horizontal {
+                background: transparent;
+            }
+        """)
+        self.scroll_cuadricula.setWidget(self.cuadricula_sv)
+
+        self.borde_izq_sv = QWidget(self)
+        self.borde_inf_sv = QWidget(self)
+        self.borde_der_sv = QWidget(self)
+
+        self.borde_izq_ag = QWidget(self)
+        self.borde_der_ag = QWidget(self)
+        self.borde_sup_ag = QWidget(self)
+        self.borde_inf_ag = QWidget(self)
+
+        for borde in [
+            self.borde_izq_sv,
+            self.borde_der_sv,
+            self.borde_inf_sv,
+            self.borde_izq_ag,
+            self.borde_der_ag,
+            self.borde_sup_ag,
+            self.borde_inf_ag
+        ]:
+            borde.setStyleSheet("background-color: black;")
 
         self.lbl_velocidad_sv = QLabel("Vel", self)
         self.lbl_velocidad_sv.setStyleSheet("color: black; font-size: 9px;")
         self.lbl_velocidad_sv.adjustSize()
 
-        for _ in self.filas_meds:
+        for letra in self.filas_meds:
             inp_med = QLineEdit(self)
             inp_med.setFrame(False)
             inp_med.setStyleSheet(estilo_tabla)
@@ -436,7 +679,31 @@ class GraficaAnestesia(QWidget):
             inp_dosis.setFrame(False)
             inp_dosis.setStyleSheet(estilo_tabla)
 
-            # 👉 color gris del sufijo/placeholder
+            btn_med = QPushButton(letra, self)
+            btn_med.setFixedSize(18, 18)
+            btn_med.setVisible(False)
+            btn_med.setStyleSheet("""
+                QPushButton {
+                    background-color: white;
+                    color: black;
+                    border: 1px solid black;
+                    font-size: 9px;
+                    font-weight: bold;
+                    padding: 0px;
+                }
+                QPushButton:hover {
+                    background-color: #eeeeee;
+                }
+            """)
+
+            btn_med.clicked.connect(
+                lambda _, l=letra: self.registrar_marca_medicamento(l)
+            )
+
+            inp_med.textChanged.connect(
+                lambda texto, b=btn_med: b.setVisible(bool(texto.strip()))
+            )
+
             pal = inp_dosis.palette()
             pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))
             inp_dosis.setPalette(pal)
@@ -452,6 +719,327 @@ class GraficaAnestesia(QWidget):
 
             self.inputs_medicamentos.append(inp_med)
             self.inputs_dosis_via.append(inp_dosis)
+            self.botones_medicamentos.append(btn_med)
+
+        self.contenedor_tipo_anestesia = QWidget(self)
+        layout_tipo = QVBoxLayout(self.contenedor_tipo_anestesia)
+        layout_tipo.setContentsMargins(12, 24, 10, 10)
+        layout_tipo.setSpacing(8)
+
+        self.rb_anestesia_general = QRadioButton("GENERAL")
+        self.rb_anestesia_regional = QRadioButton("REGIONAL")
+        self.rb_anestesia_combinada = QRadioButton("COMBINADA")
+
+        self.stack_tecnica = QStackedWidget()
+
+        # GENERAL
+        pagina_general = QWidget()
+        layout_general = QVBoxLayout(pagina_general)
+        layout_general.setContentsMargins(28, 8, 4, 4)
+        layout_general.setSpacing(6)
+
+        self.rb_general_balanceada = QRadioButton("Balanceada")
+        self.rb_general_tiva = QRadioButton("TIVA")
+        self.rb_general_inhalada = QRadioButton("Inhalada")
+
+        self.grupo_tecnica_general = QButtonGroup(self)
+        self.grupo_tecnica_general.addButton(self.rb_general_balanceada)
+        self.grupo_tecnica_general.addButton(self.rb_general_tiva)
+        self.grupo_tecnica_general.addButton(self.rb_general_inhalada)
+
+        layout_general.addWidget(self.rb_general_balanceada)
+        layout_general.addWidget(self.rb_general_tiva)
+        layout_general.addWidget(self.rb_general_inhalada)
+
+        # REGIONAL
+        pagina_regional = QWidget()
+        layout_regional = QVBoxLayout(pagina_regional)
+        layout_regional.setContentsMargins(28, 8, 4, 4)
+        layout_regional.setSpacing(6)
+
+        self.rb_regional_neuroaxial = QRadioButton("Bloqueo neuroaxial")
+        self.rb_regional_periferico = QRadioButton("Bloqueo periférico")
+        self.rb_regional_local = QRadioButton("Local")
+
+        # =========================
+        # DETALLE REGIONAL
+        # =========================
+        self.lbl_detalle_regional = QLabel("Detalle regional")
+
+        self.rb_intratecal = QRadioButton("Intratecal")
+        self.rb_peridural = QRadioButton("Peridural")
+        
+        self.rb_intratecal.setStyleSheet("margin-left: 18px;")
+        self.rb_peridural.setStyleSheet("margin-left: 18px;")
+
+        self.grupo_neuroaxial = QButtonGroup(self)
+        self.grupo_neuroaxial.addButton(self.rb_intratecal)
+        self.grupo_neuroaxial.addButton(self.rb_peridural)
+
+        self.input_nivel_puncion = QLineEdit()
+        self.input_nivel_puncion.setPlaceholderText("Nivel punción")
+        self.input_tipo_aguja = QLineEdit()
+        self.input_tipo_aguja.setPlaceholderText("Tipo de aguja")
+
+        self.input_anestesico_local = QLineEdit()
+        self.input_anestesico_local.setPlaceholderText("Anestésico local")
+
+        self.input_nivel_puncion.setContentsMargins(0, 0, 0, 0)
+        self.input_tipo_aguja.setContentsMargins(0, 0, 0, 0)
+        self.input_anestesico_local.setContentsMargins(0, 0, 0, 0)
+
+        self.rb_troncular = QRadioButton("Troncular")
+        self.rb_plexo = QRadioButton("Plexo")
+
+        self.grupo_periferico = QButtonGroup(self)
+        self.grupo_periferico.addButton(self.rb_troncular)
+        self.grupo_periferico.addButton(self.rb_plexo)
+
+        self.input_sitio_bloqueo = QLineEdit()
+        self.input_sitio_bloqueo.setPlaceholderText("Sitio / plexo")
+
+        self.input_nivel_puncion.setContentsMargins(0, 0, 0, 0)
+        self.input_tipo_aguja.setContentsMargins(0, 0, 0, 0)
+        self.input_anestesico_local.setContentsMargins(0, 0, 0, 0)
+
+        for inp in [
+            self.input_nivel_puncion,
+            self.input_tipo_aguja,
+            self.input_anestesico_local,
+            self.input_sitio_bloqueo
+        ]:
+            inp.setFixedSize(170, 24)
+            inp.setStyleSheet("""
+                QLineEdit {
+                    background-color: transparent;
+                    color: black;
+                    border: none;
+                    border-bottom: 1px solid #666;
+                    font-size: 10px;
+                    padding-left: 2px;
+                    padding-bottom: 1px;
+                }
+            """)
+
+        self.grupo_tecnica_regional = QButtonGroup(self)
+
+        self.grupo_tecnica_regional = QButtonGroup(self)
+        self.grupo_tecnica_regional.addButton(self.rb_regional_neuroaxial)
+        self.grupo_tecnica_regional.addButton(self.rb_regional_periferico)
+        self.grupo_tecnica_regional.addButton(self.rb_regional_local)
+
+        layout_regional.addWidget(self.rb_regional_neuroaxial)
+
+        sub_neuro = QVBoxLayout()
+        sub_neuro.setContentsMargins(24, 4, 0, 16)
+        sub_neuro.setSpacing(10)
+
+        sub_neuro.addWidget(self.rb_intratecal)
+        sub_neuro.addWidget(self.rb_peridural)
+
+        layout_regional.addLayout(sub_neuro)
+
+        layout_regional.addWidget(self.rb_regional_periferico)
+
+        sub_periferico = QVBoxLayout()
+        sub_periferico.setContentsMargins(24, 4, 0, 6)
+        sub_periferico.setSpacing(5)
+
+        sub_periferico.addWidget(self.rb_troncular)
+        sub_periferico.addWidget(self.rb_plexo)
+        sub_periferico.addWidget(self.input_sitio_bloqueo)
+
+        layout_regional.addLayout(sub_periferico)
+
+        layout_regional.addWidget(self.rb_regional_local)
+
+        # COMBINADA
+        pagina_combinada = QWidget()
+        layout_combinada = QVBoxLayout(pagina_combinada)
+        layout_combinada.setContentsMargins(28, 8, 4, 4)
+        layout_combinada.setSpacing(6)
+
+        self.rb_combinada_general_regional = QRadioButton("General + regional")
+        self.rb_combinada_general_periferico = QRadioButton("General + bloqueo periférico")
+
+        self.grupo_tecnica_combinada = QButtonGroup(self)
+        self.grupo_tecnica_combinada.addButton(self.rb_combinada_general_regional)
+        self.grupo_tecnica_combinada.addButton(self.rb_combinada_general_periferico)
+
+        layout_combinada.addWidget(self.rb_combinada_general_regional)
+        layout_combinada.addWidget(self.rb_combinada_general_periferico)
+
+        self.stack_tecnica.addWidget(pagina_general)
+        self.stack_tecnica.addWidget(pagina_regional)
+        self.stack_tecnica.addWidget(pagina_combinada)
+
+        layout_tipo.addWidget(self.rb_anestesia_general)
+        layout_tipo.addWidget(self.rb_anestesia_regional)
+        layout_tipo.addWidget(self.rb_anestesia_combinada)
+        layout_tipo.addWidget(self.stack_tecnica)
+        layout_tipo.addStretch()
+
+        self.grupo_tipo_anestesia = QButtonGroup(self)
+        self.grupo_tipo_anestesia.addButton(self.rb_anestesia_general)
+        self.grupo_tipo_anestesia.addButton(self.rb_anestesia_regional)
+        self.grupo_tipo_anestesia.addButton(self.rb_anestesia_combinada)
+
+        self.rb_general_balanceada.setChecked(True)
+
+        self.rb_anestesia_general.toggled.connect(self.actualizar_tecnica_anestesica)
+        self.rb_anestesia_regional.toggled.connect(self.actualizar_tecnica_anestesica)
+        self.rb_anestesia_combinada.toggled.connect(self.actualizar_tecnica_anestesica)
+        self.rb_regional_neuroaxial.toggled.connect(self.actualizar_detalle_regional)
+        self.rb_regional_periferico.toggled.connect(self.actualizar_detalle_regional)
+        self.rb_regional_local.toggled.connect(self.actualizar_detalle_regional)
+
+        self.rb_intratecal.toggled.connect(self.update)
+        self.rb_peridural.toggled.connect(self.update)
+        self.rb_troncular.toggled.connect(self.update)
+        self.rb_plexo.toggled.connect(self.update)
+
+        # =========================
+        # CASOS OBSTÉTRICOS
+        # =========================
+
+        self.contenedor_obstetricos = QWidget(self)
+
+        self.chk_caso_obstetrico = QCheckBox("Activar", self.contenedor_obstetricos)
+        self.chk_caso_obstetrico.setChecked(False)
+        self.chk_caso_obstetrico.setStyleSheet("""
+            QCheckBox {
+                color: black;
+                background-color: transparent;
+                font-size: 10px;
+                font-weight: bold;
+                padding-left: 2px;
+            }
+        """)
+
+        layout_obs = QVBoxLayout(self.contenedor_obstetricos)
+        layout_obs.setContentsMargins(10, 28, 10, 10)
+        layout_obs.setSpacing(8)
+
+        # Expulsión placenta
+        fila_placenta = QHBoxLayout()
+        fila_placenta.setContentsMargins(0, 14, 0, 0)
+
+        self.rb_placenta_espontanea = QRadioButton("Espontánea")
+        self.rb_placenta_manual = QRadioButton("Manual")
+
+        self.grupo_placenta = QButtonGroup(self)
+        self.grupo_placenta.addButton(self.rb_placenta_espontanea)
+        self.grupo_placenta.addButton(self.rb_placenta_manual)
+
+        fila_placenta.addWidget(QLabel("Expulsión placenta:"))
+        fila_placenta.addWidget(self.rb_placenta_espontanea)
+        fila_placenta.addWidget(self.rb_placenta_manual)
+        fila_placenta.addStretch()
+
+        layout_obs.addLayout(fila_placenta)
+
+        # RN
+        fila_rn1 = QHBoxLayout()
+
+        self.chk_rn_masculino = QCheckBox("♂")
+        self.chk_rn_femenino = QCheckBox("♀")
+        self.chk_rn_indeterminado = QCheckBox("Indeterminado")
+
+        self.grupo_sexo_rn = QButtonGroup(self)
+        self.grupo_sexo_rn.setExclusive(True)
+        self.grupo_sexo_rn.addButton(self.chk_rn_masculino)
+        self.grupo_sexo_rn.addButton(self.chk_rn_femenino)
+        self.grupo_sexo_rn.addButton(self.chk_rn_indeterminado)
+
+        for chk in [self.chk_rn_masculino, self.chk_rn_femenino]:
+            chk.setStyleSheet("""
+                QCheckBox {
+                    color: black;
+                    background-color: transparent;
+                    font-size: 13px;
+                    font-weight: bold;
+                }
+            """)
+
+        self.input_rn_peso = QLineEdit()
+        self.input_rn_peso.setPlaceholderText("Peso")
+
+        self.input_rn_talla = QLineEdit()
+        self.input_rn_talla.setPlaceholderText("Talla")
+
+        for inp in [
+            self.input_rn_peso,
+            self.input_rn_talla
+        ]:
+            inp.setFixedWidth(80)
+
+        fila_rn1.addWidget(QLabel("RN"))
+        fila_rn1.addWidget(self.chk_rn_masculino)
+        fila_rn1.addWidget(self.chk_rn_femenino)
+        fila_rn1.addWidget(self.chk_rn_indeterminado)
+        fila_rn1.addWidget(self.input_rn_peso)
+        fila_rn1.addWidget(self.input_rn_talla)
+        fila_rn1.addStretch()
+
+        layout_obs.addLayout(fila_rn1)
+
+        # Apgar
+        fila_apgar = QHBoxLayout()
+
+        self.input_apgar_1 = QLineEdit()
+        self.input_apgar_5 = QLineEdit()
+        self.input_apgar_10 = QLineEdit()
+
+        for inp in [
+            self.input_apgar_1,
+            self.input_apgar_5,
+            self.input_apgar_10
+        ]:
+            inp.setFixedWidth(45)
+
+        fila_apgar.addWidget(QLabel("Apgar"))
+        fila_apgar.addWidget(QLabel("1 min"))
+        fila_apgar.addWidget(self.input_apgar_1)
+
+        fila_apgar.addWidget(QLabel("5 min"))
+        fila_apgar.addWidget(self.input_apgar_5)
+
+        fila_apgar.addWidget(QLabel("10 min"))
+        fila_apgar.addWidget(self.input_apgar_10)
+
+        fila_apgar.addStretch()
+
+        layout_obs.addLayout(fila_apgar)
+
+        # Estado al salir
+        self.input_estado_rn = QLineEdit()
+        self.input_estado_rn.setPlaceholderText(
+            "Estado general al salir del quirófano"
+        )
+
+        layout_obs.addWidget(self.input_estado_rn)
+
+        self.contenedor_obstetricos.setStyleSheet("""
+            QWidget {
+                background-color: transparent;
+                color: black;
+                font-size: 10px;
+            }
+
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #999;
+                padding-left: 3px;
+                height: 18px;
+            }
+
+            QRadioButton {
+                spacing: 4px;
+            }
+        """)
+
+        self.actualizar_tecnica_anestesica()
+        self.actualizar_detalle_regional()
 
     def obtener_total_columnas_dibujo(self):
         columnas_minimas = 36
@@ -748,250 +1336,187 @@ class GraficaAnestesia(QWidget):
             )
 
     def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.fillRect(self.rect(), QColor("white"))
 
-        ancho = self.width()
-        alto = self.height()
+            margen_izq = 110
+            margen_sup = 120
 
-        margen_izq = 110
-        margen_der = 20
-        margen_sup = 120
+            x0 = margen_izq
+            y0 = margen_sup
 
-        alto_header_meds = 22
-        alto_fila_meds = 24
-        total_filas_meds = len(self.filas_meds)
+            ancho_col = 35
+            ancho_scroll = int(36 * ancho_col) + 2
+            alto_barra = self.scroll_cuadricula.horizontalScrollBar().sizeHint().height()
+            alto_scroll = self.cuadricula_sv.height() + alto_barra + 8
 
-        # espacio para: TIEMPO + encabezado tabla + 13 filas + aire abajo
-        margen_inf = 60 + alto_header_meds + (total_filas_meds * alto_fila_meds) + 30
+            y_scroll_top = y0 - 96
 
-        x0 = margen_izq
-        y0 = margen_sup
-        x1 = ancho - margen_der
-        y1 = alto - margen_inf
+            # =========================
+            # BOTONES SIMULACIÓN
+            # =========================
+            self.posicionar_botones_simulacion(x0, y_scroll_top)
 
-        ancho_grafica = x1 - x0
-        alto_grafica = y1 - y0
+            # =========================
+            # SCROLL HORIZONTAL DE SV
+            # =========================
+            self.scroll_cuadricula.setGeometry(
+                int(x0),
+                int(y_scroll_top),
+                int(ancho_scroll),
+                int(alto_scroll)
+            )
+            self.scroll_cuadricula.raise_()
 
-        painter.fillRect(self.rect(), QColor("white"))
+            # =========================
+            # BORDES FIJOS AGENTES Y SV
+            # =========================
 
-        # Área principal
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawRect(x0, y0, ancho_grafica, alto_grafica)
+            y_ag_top = y_scroll_top
+            y_ag_bottom = y_ag_top + 80
 
-        # Cuadrícula
-        num_columnas = self.obtener_total_columnas_dibujo()
-        ancho_col = 35  # ancho fijo por columna en pantalla
+            y_sv_top = y_scroll_top + 96
+            y_sv_bottom = y_sv_top + 380
 
-        ancho_grafica = num_columnas * ancho_col
-        x1 = x0 + ancho_grafica
+            # ---- SV ----
 
-        nuevo_ancho_minimo = int(x1 + margen_der + 40)
-        if self.minimumWidth() != nuevo_ancho_minimo:
-            self.setMinimumWidth(nuevo_ancho_minimo)
+            self.borde_izq_sv.setGeometry(
+                int(x0),
+                int(y_sv_top),
+                2,
+                380
+            )
 
-        painter.setPen(QPen(QColor(180, 180, 180), 1))
-        for i in range(1, num_columnas):
-            x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y0, x, y1 - 1)
+            self.borde_der_sv.setGeometry(
+                int(x0 + ancho_scroll - 2),
+                int(y_sv_top),
+                2,
+                380
+            )
 
-        num_filas = 12
-        alto_fila = alto_grafica / num_filas
-        for j in range(1, num_filas):
-            y = int(y0 + j * alto_fila)
-            painter.drawLine(x0, y, x1, y)
+            self.borde_inf_sv.setGeometry(
+                int(x0),
+                int(y_sv_bottom - 1),
+                int(ancho_scroll),
+                2
+            )
 
-        # Líneas gruesas cada 15 min
-        painter.setPen(QPen(QColor(120, 120, 120), 2))
-        for i in range(0, num_columnas + 1, 3):
-            x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y0, x, y1 - 1)
+            # ---- AGENTES ----
 
-        # Línea superior de SV (redibujada al final para que quede limpia)
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(x0, y0, x1, y0)
+            self.borde_sup_ag.setGeometry(
+                int(x0),
+                int(y_ag_top),
+                int(ancho_scroll),
+                2
+            )
 
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(x0, y1, x1, y1)
+            self.borde_inf_ag.setGeometry(
+                int(x0),
+                int(y_ag_bottom - 1),
+                int(ancho_scroll),
+                2
+            )
 
-        # Escala izquierda
-        painter.setFont(QFont("Arial", 8))
-        painter.setPen(QPen(QColor(60, 60, 60), 1))
-        for valor in [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]:
-            y = self.valor_a_y(valor, y0, y1)
-            painter.drawText(x0 - 28, int(y + 4), str(valor))
+            self.borde_izq_ag.setGeometry(
+                int(x0),
+                int(y_ag_top),
+                2,
+                80
+            )
 
-        # Etiquetas de tiempo: 15, 30, 45, 60 y reinicia
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+            self.borde_der_ag.setGeometry(
+                int(x0 + ancho_scroll - 2),
+                int(y_ag_top),
+                2,
+                80
+            )
 
-        # Minutos arriba de la gráfica principal
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        painter.setFont(QFont("Arial", 8))
+            # Traer encima del scroll
+            for borde in [
+                self.borde_izq_sv,
+                self.borde_der_sv,
+                self.borde_inf_sv,
+                self.borde_sup_ag,
+                self.borde_inf_ag,
+                self.borde_izq_ag,
+                self.borde_der_ag
+            ]:
+                borde.raise_()
 
-        y_minutos = y0 - 6  # ajustable
+            # Bordes fijos de la cuadrícula, NO se mueven con el scroll
+            y_sv_top = y_scroll_top + 96
+            y_sv_bottom = y_sv_top + 380
+            y_ag_top = y_scroll_top
+            y_ag_bottom = y_ag_top + 80
 
-        for i in range(num_columnas):
-            minuto_real = (i + 1) * 5
+            self.borde_izq_sv.setGeometry(
+                int(x0),
+                int(y_sv_top),
+                2,
+                int(380)
+            )
 
-            if minuto_real % 15 == 0:
-                minuto_etiqueta = minuto_real % 60
-                if minuto_etiqueta == 0:
-                    minuto_etiqueta = 60
+            self.borde_inf_sv.setGeometry(
+                int(x0),
+                int(y_sv_bottom - 1),
+                int(ancho_scroll),
+                2
+            )
 
-                texto = str(minuto_etiqueta)
-                x = int(x0 + (i + 1) * ancho_col)
+            self.borde_izq_sv.raise_()
+            self.borde_inf_sv.raise_()
 
-                rect = painter.fontMetrics().boundingRect(texto)
-                x_texto = x - rect.width() / 2
+            # Línea inferior limpia de la cuadrícula, sin borde del scroll
+            painter.setPen(QPen(Qt.GlobalColor.black, 2))
+            painter.drawLine(
+                int(x0),
+                int(y_scroll_top + self.cuadricula_sv.height() - 1),
+                int(x0 + ancho_scroll),
+                int(y_scroll_top + self.cuadricula_sv.height() - 1)
+            )
 
-                painter.drawText(int(x_texto), y_minutos, texto)
+            # =========================
+            # ETIQUETAS FIJAS IZQUIERDAS
+            # =========================
+            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
 
-        painter.drawText(10, y1 + 20, "TIEMPO")
+            painter.drawText(x0 - 70, y_scroll_top + 18, "Sevo")
+            painter.drawText(x0 - 70, y_scroll_top + 38, "Flujo")
+            painter.drawText(x0 - 70, y_scroll_top + 58, "FiO₂")
+            painter.drawText(x0 - 70, y_scroll_top + 78, "SpO₂")
 
-        # =========================
-        # TABLA DE MEDICAMENTOS
-        # =========================
-        self.posicionar_tabla_medicamentos(x0, y1)
-        self.draw_tabla_medicamentos(painter, y1)
+            y_sv_top = y_scroll_top + 96
+            y_sv_bottom = y_sv_top + 380
 
-        # painter.drawText(x0, 20, "Gráfica anestésica (cada cuadro = 5 min)")
+            painter.drawText(x0 - 105, y_sv_top + 240, "EVENTOS")
+            y_tiempo = y_sv_bottom + 34
 
-        self.draw_eventos_abajo_sv(painter, x0, y1, ancho_col)
+            painter.setFont(QFont("Arial", 11, QFont.Weight.Bold))
+            painter.drawText(10, y_tiempo, "TIEMPO")
 
-        # =========================
-        # SpO2 + AGENTES ARRIBA
-        # =========================
-      
-        # Área de agentes arriba de la gráfica
-        alto_fila_ag = 20
-        alto_franja_minutos = 16
+            painter.setFont(QFont("Arial", 8))
+            for valor in [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]:
+                y_val = self.valor_a_y(valor, y_sv_top, y_sv_bottom)
+                painter.drawText(x0 - 28, int(y_val + 4), str(valor))
 
-        y_ag_top = y0 - alto_franja_minutos - (alto_fila_ag * 4)
-        y_ag_bottom = y0 - alto_franja_minutos
+            # =========================
+            # TABLA DE MEDICAMENTOS Y TÉCNICA
+            # =========================
+            y_tabla_top = y_scroll_top + alto_scroll + 28
 
-        self.posicionar_botones_simulacion(x0, y_ag_top)
-        
-        # Texto centrado verticalmente en cada fila
-        y_sevo = y_ag_top + 15
-        y_flujo = y_ag_top + 35
-        y_fio2 = y_ag_top + 55  
-        y_spo2 = y_ag_top + 75
+            # Tus funciones suman internamente +28 px aprox,
+            # por eso mandamos y_tabla_top - 28
+            y_ref_tabla = y_tabla_top - 28
 
-        # =========================
-        # Cuadrícula de agentes
-        # =========================
-        painter.setPen(QPen(QColor(180, 180, 180), 1))
+            self.posicionar_tabla_medicamentos(x0, y_ref_tabla)
+            self.draw_tabla_medicamentos(painter, y_ref_tabla)
 
-        # Verticales alineadas con la gráfica principal
-        for i in range(num_columnas + 1):
-            x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
+            self.posicionar_botones_eventos(x0, y_sv_bottom)
+            self.btn_deshacer.raise_()
 
-        # Horizontales internas y superior (sin la inferior)
-        for j in range(4):
-            y = y_ag_top + j * alto_fila_ag
-            painter.drawLine(x0, y, x1, y)
-
-        # Líneas gruesas cada 15 min
-        painter.setPen(QPen(QColor(120, 120, 120), 2))
-        for i in range(0, num_columnas + 1, 3):
-            x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
-
-        # Bordes de la cuadrícula de agentes (sin borde inferior)
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(x0, y_ag_top, x1, y_ag_top)         # borde superior
-        painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)      # borde izquierdo
-        painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)      # borde derecho
-
-        # =========================
-        # Cuadrícula de agentes
-        # =========================
-
-        # 1) Verticales internas finas, EXCEPTO las de cada 15 min
-        painter.setPen(QPen(QColor(180, 180, 180), 1))
-        for i in range(1, num_columnas):  # sin bordes x0 y x1
-            if i % 3 != 0:  # no dibujar aquí las de 15, 30, 45...
-                x = int(x0 + i * ancho_col)
-                painter.drawLine(x, y_ag_top, x, y_ag_bottom)
-
-        # 2) Horizontales internas finas (sin superior ni inferior)
-        for j in range(1, 4):  # solo divisiones internas
-            y = y_ag_top + j * alto_fila_ag
-            painter.drawLine(x0, y, x1, y)
-
-        # 3) Verticales gruesas cada 15 min
-        painter.setPen(QPen(QColor(120, 120, 120), 2))
-        for i in range(3, num_columnas, 3):  # internas, sin bordes
-            x = int(x0 + i * ancho_col)
-            painter.drawLine(x, y_ag_top, x, y_ag_bottom)
-
-        # 4) Bordes de agentes (solo superior, izquierdo y derecho)
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(x0, y_ag_top, x1, y_ag_top)          # superior
-        painter.drawLine(x0, y_ag_top, x0, y_ag_bottom)       # izquierdo
-        painter.drawLine(x1, y_ag_top, x1, y_ag_bottom)       # derecho
-
-        # Línea inferior de AGENTES al final, para que quede limpia
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.drawLine(x0, y_ag_bottom, x1, y_ag_bottom)
-
-        # Etiquetas izquierda
-        painter.drawText(x0 - 70, y_spo2, "SpO₂")
-        painter.drawText(x0 - 70, y_fio2, "FiO₂")
-        painter.drawText(x0 - 70, y_flujo, "Flujo")
-        painter.drawText(x0 - 70, y_sevo, "Sevo")
-
-        # Valores alineados al tiempo
-        # for t, s, f, fl, sv in zip(self.tiempos, self.spo2, self.fio2, self.flujo, self.sevo):
-        #    x = self.tiempo_a_x(t, x0, ancho_col)
-        #
-        #    painter.drawText(int(x - 12), y_sevo, str(sv))
-        #    painter.drawText(int(x - 12), y_flujo, str(fl))
-        #    painter.drawText(int(x - 12), y_fio2, str(f))
-        #    painter.drawText(int(x - 12), y_spo2, str(s))
-        #
-        # FC: puntos (sin línea)
-        # painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        # painter.setBrush(QColor("black"))
-        #
-        # for t, p in zip(self.tiempos, self.pulso):
-        # x = int(self.tiempo_a_x(t, x0, ancho_col))
-        # y = int(self.valor_a_y(p, y0, y1))
-        # painter.drawEllipse(QPointF(x, y), 2, 2)
-
-        # TA: flechas sobre la línea de tiempo
-        # painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        # painter.setBrush(Qt.BrushStyle.NoBrush)
-        #
-        # for t, sis, dia in zip(self.tiempos, self.ta_sistolica, self.ta_diastolica):
-        #     x = x0 + ((t - 5) / 5) * ancho_col
-        #     y_sis = self.valor_a_y(sis, y0, y1)
-        #     y_dia = self.valor_a_y(dia, y0, y1)
-        #
-        #     painter.drawLine(int(x), int(y_sis), int(x - 4), int(y_sis - 6))
-        #     painter.drawLine(int(x), int(y_sis), int(x + 4), int(y_sis - 6))
-        #
-        #     painter.drawLine(int(x), int(y_dia), int(x - 4), int(y_dia + 6))
-        #     painter.drawLine(int(x), int(y_dia), int(x + 4), int(y_dia + 6))
-
-        # Temperatura = triángulo
-        painter.setPen(QPen(Qt.GlobalColor.black, 2))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        # for t, temp in zip(self.tiempos, self.temperatura):
-        #    x = self.tiempo_a_x(t, x0, ancho_col)
-        #    y = self.temperatura_a_y(temp, y0, y1)
-        #    self.dibujar_triangulo(painter, x, y, tamaño=8)
-        
-        painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        painter.drawText(int(x0 - 105), int(y1 - 118), "EVENTOS")
-
-        self.posicionar_botones_eventos(x0, y1)
-
-        self.draw_agentes_simulados(painter)
-        self.draw_sv_simulados(painter)
-        self.draw_temperatura_simulada(painter)
+            self.draw_eventos_abajo_sv(painter, x0, y_sv_bottom, ancho_col)
 
 
     def aplicar_estilo_boton_evento(self, btn, estado):
@@ -1062,7 +1587,10 @@ class GraficaAnestesia(QWidget):
 
 
     def minutos_desde_inicio(self, hora_evento):
-        delta = hora_evento - self.hora_inicio
+        if self.hora_base_rejilla is None:
+            return 0
+
+        delta = hora_evento - self.hora_base_rejilla
         return int(delta.total_seconds() // 60)
         
     def x_columna_tiempo(self, minutos, x0, ancho_col):
@@ -1088,8 +1616,8 @@ class GraficaAnestesia(QWidget):
 
             eventos_por_columna[columna].append(evento["numero"])
 
-        y_texto = y1 + 16
-        painter.setFont(QFont("Arial", 8))
+        y_texto = y1 + 34
+        painter.setFont(QFont("Arial", 11, QFont.Weight.Bold))
 
         for columna, numeros in eventos_por_columna.items():
             x_centro = x0 + columna * ancho_col + ancho_col / 2
@@ -1108,9 +1636,14 @@ class GraficaAnestesia(QWidget):
     def registrar_evento(self, numero_evento):
         hora_actual = datetime.now()
 
-        # Si es el primer evento, usarlo como referencia de tiempo
-        if not self.eventos_registrados:
+        if numero_evento == 1:
             self.hora_inicio = hora_actual
+
+            self.hora_base_rejilla = hora_actual.replace(
+                minute=0,
+                second=0,
+                microsecond=0
+            )
 
         self.eventos_registrados.append({
             "hora": hora_actual,
@@ -1137,12 +1670,94 @@ class GraficaAnestesia(QWidget):
         alto_header = 22
         alto_fila = 24
 
+        # Posición del bloque "Tipo de anestesia" a la derecha de medicamentos
+        x_tipo = 390
+        y_tipo = y_tabla - 14   # MISMO Y QUE EL RECTÁNGULO
+        
+        w_tipo = 420
+        h_tipo = 260
+
+        self.x_tipo_panel = x_tipo
+        self.y_tipo_panel = y_tipo
+
+        self.contenedor_tipo_anestesia.setGeometry(x_tipo + 5, y_tipo + 5, 420, 260)
+        self.contenedor_tipo_anestesia.setStyleSheet("""
+            QWidget {
+                background-color: transparent;
+            }
+            QRadioButton {
+                color: black;
+                background-color: white;
+                font-size: 11px;
+                font-weight: bold;
+            }
+        """)
+        self.contenedor_tipo_anestesia.show()
+        self.contenedor_tipo_anestesia.raise_()
+
+        # =========================
+        # PANEL OBSTÉTRICO
+        # =========================
+
+        x_obs = x_tipo
+        y_obs = y_tipo + h_tipo + 22
+
+        w_obs = 420
+        h_obs = 170
+
+        self.chk_caso_obstetrico.setGeometry(
+            12,
+            4,
+            90,
+            20
+        )
+        self.chk_caso_obstetrico.show()
+        self.chk_caso_obstetrico.raise_()
+
+        self.contenedor_obstetricos.setGeometry(
+            x_obs + 5,
+            y_obs + 5,
+            w_obs - 10,
+            h_obs - 10
+        )
+
+        self.contenedor_obstetricos.show()
+        self.contenedor_obstetricos.raise_()
+
+        # Inputs neuroaxiales manuales, dentro del panel
+        x_input = 175
+        y_input = 88
+        w_input = 155
+        h_input = 20
+        espacio = 24
+
+        for inp in [
+            self.input_nivel_puncion,
+            self.input_tipo_aguja,
+            self.input_anestesico_local
+        ]:
+            if inp.parent() is not self.contenedor_tipo_anestesia:
+                inp.setParent(self.contenedor_tipo_anestesia)
+
+        self.input_nivel_puncion.setGeometry(x_input, y_input, w_input, h_input)
+        self.input_tipo_aguja.setGeometry(x_input, y_input + espacio, w_input, h_input)
+        self.input_anestesico_local.setGeometry(x_input, y_input + espacio * 2, w_input, h_input)
+
+        for inp in [
+            self.input_nivel_puncion,
+            self.input_tipo_aguja,
+            self.input_anestesico_local
+        ]:
+            inp.raise_()
+
         for i in range(len(self.filas_meds)):
             y = y_tabla - 14 + alto_header + i * alto_fila
 
             # Más angosto para no tapar la línea divisoria
+            self.botones_medicamentos[i].setGeometry(x_letra + 1, y + 3, 18, 18)
             self.inputs_medicamentos[i].setGeometry(x_med + 2, y + 2, 188, 20)
             self.inputs_dosis_via[i].setGeometry(x_dosis + 2, y + 2, 114, 20)
+            
 
     def draw_tabla_medicamentos(self, painter, y1):
         x_letra = 18
@@ -1207,6 +1822,71 @@ class GraficaAnestesia(QWidget):
 
             painter.drawText(rect_letra, Qt.AlignmentFlag.AlignCenter, letra)
 
+        # =========================
+        # MÉTODO Y TÉCNICA ANESTÉSICA
+        # =========================
+        x_tipo = 390
+        y_tipo = y0
+        w_tipo = 420
+        h_tipo = 260
+
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.drawRect(x_tipo, y_tipo, w_tipo, h_tipo)
+
+        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        painter.drawText(
+            QRect(x_tipo, y_tipo, w_tipo, alto_header),
+            Qt.AlignmentFlag.AlignCenter,
+            "MÉTODO Y TÉCNICA ANESTÉSICA"
+        )
+
+        # =========================
+        # CASOS OBSTÉTRICOS
+        # =========================
+
+        x_obs = x_tipo
+        y_obs = y_tipo + h_tipo + 24
+
+        w_obs = 420
+        h_obs = 170
+
+        # borde completo del recuadro obstétrico
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.drawRect(x_obs, y_obs, w_obs, h_obs)
+
+        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        painter.drawText(
+            QRect(x_obs, y_obs + 4, w_obs, alto_header),
+            Qt.AlignmentFlag.AlignCenter,
+            "CASOS OBSTÉTRICOS"
+        )
+
+    def registrar_marca_medicamento(self, letra):
+        if not any(e["numero"] == "1" for e in self.eventos_registrados):
+            QMessageBox.warning(
+                self,
+                "Evento requerido",
+                "Primero registra la llegada del paciente a quirófano."
+            )
+            return
+
+        ahora = datetime.now()
+        minutos = self.minutos_desde_inicio(ahora)
+        col = minutos // 5
+
+        if col < 0:
+            col = 0
+
+        if col >= self.cuadricula_sv.num_columnas:
+            col = self.cuadricula_sv.num_columnas - 1
+
+        self.marcas_medicamentos.append({
+            "letra": letra,
+            "col": col
+        })
+
+        self.cuadricula_sv.update()
+
     def draw_temperatura_simulada(self, painter):
         if not self.datos_temp:
             return
@@ -1231,6 +1911,7 @@ class GraficaAnestesia(QWidget):
         ancho_grafica = x1 - x0
         num_columnas = self.obtener_total_columnas_dibujo()
         ancho_col = 35
+        alto_scroll = 496
         ancho_grafica = num_columnas * ancho_col
         x1 = x0 + ancho_grafica
 
@@ -1476,6 +2157,8 @@ class GraficaAnestesia(QWidget):
         self.datos_temp = []
         self.datos_resp = []
         self.datos_resp = []
+        self.marcas_medicamentos = []
+        self.botones_medicamentos = []
         self.columna_actual = 0
         self.btn_iniciar_sv.setEnabled(True)
         self.btn_pausar_sv.setEnabled(False)
@@ -1548,111 +2231,295 @@ class GraficaAnestesia(QWidget):
         sugerencia = self.dosis_sugeridas.get(nombre_normalizado, "")
         input_dosis.setSufijoSugerido(sugerencia)
 
+    def actualizar_tecnica_anestesica(self):
+        if self.rb_anestesia_general.isChecked():
+            self.stack_tecnica.setCurrentIndex(0)
+
+            if not any([
+                self.rb_general_balanceada.isChecked(),
+                self.rb_general_tiva.isChecked(),
+                self.rb_general_inhalada.isChecked()
+            ]):
+                self.rb_general_balanceada.setChecked(True)
+
+        elif self.rb_anestesia_regional.isChecked():
+            self.stack_tecnica.setCurrentIndex(1)
+
+            if not any([
+                self.rb_regional_neuroaxial.isChecked(),
+                self.rb_regional_periferico.isChecked(),
+                self.rb_regional_local.isChecked()
+            ]):
+                self.rb_regional_neuroaxial.setChecked(True)
+
+            self.actualizar_detalle_regional()
+
+        elif self.rb_anestesia_combinada.isChecked():
+            self.stack_tecnica.setCurrentIndex(2)
+
+            if not any([
+                self.rb_combinada_general_regional.isChecked(),
+                self.rb_combinada_general_periferico.isChecked()
+            ]):
+                self.rb_combinada_general_regional.setChecked(True)
+            
+        self.actualizar_detalle_regional()
+
+    def actualizar_detalle_regional(self):
+        es_regional = self.rb_anestesia_regional.isChecked()
+        es_neuroaxial = self.rb_regional_neuroaxial.isChecked()
+        es_periferico = self.rb_regional_periferico.isChecked()
+        # Ocultar radios internos porque ahora usamos inputs manuales
+        self.rb_intratecal.setVisible(False)
+        self.rb_peridural.setVisible(False)
+        self.rb_troncular.setVisible(False)
+        self.rb_plexo.setVisible(False)
+
+        # 🔴 SI NO ES REGIONAL → ocultar todo
+        if not es_regional:
+            for w in [
+                self.rb_intratecal,
+                self.rb_peridural,
+                self.input_nivel_puncion,
+                self.input_tipo_aguja,
+                self.input_anestesico_local,
+                self.rb_troncular,
+                self.rb_plexo,
+                self.input_sitio_bloqueo
+            ]:
+                w.setVisible(False)
+            return
+
+        # 🟢 NEUROAXIAL
+        for w in [
+            self.rb_intratecal,
+            self.rb_peridural,
+            self.input_nivel_puncion,
+            self.input_tipo_aguja,
+            self.input_anestesico_local
+        ]:
+            w.setVisible(es_neuroaxial)
+
+        # 🔵 PERIFÉRICO
+        for w in [
+            self.rb_troncular,
+            self.rb_plexo,
+            self.input_sitio_bloqueo
+        ]:
+            w.setVisible(es_periferico)
+
+        # Defaults automáticos (UX clínico)
+        if es_neuroaxial and not any([
+            self.rb_intratecal.isChecked(),
+            self.rb_peridural.isChecked()
+        ]):
+            self.rb_intratecal.setChecked(True)
+
+        if es_periferico and not any([
+            self.rb_troncular.isChecked(),
+            self.rb_plexo.isChecked()
+        ]):
+            self.rb_plexo.setChecked(True)
+
 
 class RegistroAnestesia(QWidget):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Registro de Anestesia IMSS")
-        self.resize(1100, 700)
-        self.setMinimumSize(900, 600)
+        ANCHO_VENTANA = 1400
+        ALTO_VENTANA = 900
+
+        self.resize(ANCHO_VENTANA, ALTO_VENTANA)
+        self.setMinimumWidth(ANCHO_VENTANA)
+        self.setMaximumWidth(ANCHO_VENTANA)
+        self.setMinimumHeight(700)
 
         layout = QVBoxLayout()
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-
-        scroll.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-
-        container = QWidget()
-        container_layout = QVBoxLayout(container)
-
-        scroll.setWidget(container)
-        layout.addWidget(scroll)
-
+        
         header = QLabel("REGISTRO DE ANESTESIA Y RECUPERACIÓN")
         header.setStyleSheet("font-size: 18px; font-weight: bold;")
-        container_layout.addWidget(header)
 
-        grid = QFormLayout()
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(8)
-        grid.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        grid.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        grid = QVBoxLayout()
+        grid.setSpacing(8)
+        grid.setContentsMargins(0, 0, 0, 0)
 
         ANCHO_CAMPO = 320
         ANCHO_CORTO = 120
 
+        def fila_simple(texto, campo):
+            fila = QHBoxLayout()
+            fila.setSpacing(3)
+
+            label = QLabel(texto)
+            label.setFixedWidth(140)
+
+            fila.addWidget(label)
+            fila.addWidget(campo)
+            fila.addStretch()
+
+            grid.addLayout(fila)
+
+
+        def fila_doble(texto1, campo1, texto2, campo2):
+            fila = QHBoxLayout()
+            fila.setSpacing(3)
+
+            label1 = QLabel(texto1)
+            label1.setFixedWidth(80)
+
+            label2 = QLabel(texto2)
+            label2.setFixedWidth(80)
+
+            fila.addWidget(label1)
+            fila.addWidget(campo1)
+
+            fila.addSpacing(20)
+
+            fila.addWidget(label2)
+            fila.addWidget(campo2)
+
+            fila.addStretch()
+
+            grid.addLayout(fila)
+
+
+        def fila_triple(texto1, campo1, texto2, campo2, texto3, campo3):
+            fila = QHBoxLayout()
+            fila.setSpacing(3)
+
+            label1 = QLabel(texto1)
+            label1.setFixedWidth(50)
+
+            label2 = QLabel(texto2)
+            label2.setFixedWidth(45)
+
+            label3 = QLabel(texto3)
+            label3.setFixedWidth(60)
+
+            fila.addWidget(label1)
+            fila.addWidget(campo1)
+
+            fila.addSpacing(15)
+
+            fila.addWidget(label2)
+            fila.addWidget(campo2)
+
+            fila.addSpacing(15)
+
+            fila.addWidget(label3)
+            fila.addWidget(campo3)
+
+            fila.addStretch()
+
+            grid.addLayout(fila)
+
+        # =========================
+        # CAMPOS
+        # =========================
+
         self.nombre = QLineEdit()
-        self.nombre.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Nombre:", self.nombre)
+        self.nombre.setFixedWidth(320)
 
         self.nss = QLineEdit()
-        self.nss.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("NSS:", self.nss)
+        self.nss.setFixedWidth(200)
+
+        fila_doble("Nombre:", self.nombre, "NSS:", self.nss)
 
         self.edad = QLineEdit()
-        self.edad.setFixedWidth(ANCHO_CORTO)
-        grid.addRow("Edad:", self.edad)
+        self.edad.setFixedWidth(80)
 
-        self.sexo = QLineEdit()
-        self.sexo.setFixedWidth(ANCHO_CORTO)
-        grid.addRow("Sexo:", self.sexo)
+        self.sexo = QComboBox()
+        self.sexo.setFixedWidth(140)
+
+        self.sexo.addItems([
+            "♂ Masculino",
+            "♀ Femenino",
+            "Indeterminado"
+        ])
 
         self.unidad = QLineEdit()
-        self.unidad.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Unidad:", self.unidad)
+        self.unidad.setFixedWidth(200)
+
+        fila_triple("Edad:", self.edad, "Sexo:", self.sexo, "Unidad:", self.unidad)
 
         self.dx_pre = QLineEdit()
-        self.dx_pre.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Diagnóstico preoperatorio:", self.dx_pre)
+        self.dx_pre.setFixedWidth(400)
+        fila_simple("Diagnóstico preoperatorio:", self.dx_pre)
 
         self.cirugia_programada = QLineEdit()
-        self.cirugia_programada.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Cirugía programada:", self.cirugia_programada)
+        self.cirugia_programada.setFixedWidth(400)
+        fila_simple("Cirugía programada:", self.cirugia_programada)
 
         self.dx_post = QLineEdit()
-        self.dx_post.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Diagnóstico postoperatorio:", self.dx_post)
+        self.dx_post.setFixedWidth(400)
+        fila_simple("Diagnóstico postoperatorio:", self.dx_post)
 
         self.cirugia_realizada = QLineEdit()
-        self.cirugia_realizada.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Cirugía realizada:", self.cirugia_realizada)
+        self.cirugia_realizada.setFixedWidth(400)
+        fila_simple("Cirugía realizada:", self.cirugia_realizada)
 
         self.anestesiologo = QLineEdit()
-        self.anestesiologo.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Anestesiólogo:", self.anestesiologo)
+        self.anestesiologo.setFixedWidth(250)
 
         self.cirujano = QLineEdit()
-        self.cirujano.setFixedWidth(ANCHO_CAMPO)
-        grid.addRow("Cirujano:", self.cirujano)
+        self.cirujano.setFixedWidth(250)
 
-        container_layout.addLayout(grid)
+        fila_doble("Anestesiólogo:", self.anestesiologo, "Cirujano:", self.cirujano)
+        # =========================
+        # ENCABEZADO FIJO
+        # =========================
+        layout.addWidget(header)
+        layout.addLayout(grid)
 
-        container_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-
+        # =========================
+        # SCROLL SOLO PARA LA GRÁFICA
+        # =========================
         self.grafica = GraficaAnestesia()
-        container_layout.addWidget(self.grafica)
+
+        scroll_grafica = QScrollArea()
+        scroll_grafica.setWidgetResizable(False)
+        scroll_grafica.setWidget(self.grafica)
+        scroll_grafica.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_grafica.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        layout.addWidget(scroll_grafica, stretch=1)
 
         self.print_btn = QPushButton("EXPORTAR PDF + JSON")
         self.print_btn.clicked.connect(self.exportar_pdf_json)
-        container_layout.addWidget(self.print_btn)
         
+
         self.load_btn = QPushButton("CARGAR JSON")
         self.load_btn.clicked.connect(self.cargar_json)
-        container_layout.addWidget(self.load_btn)
+
 
         self.btn_debug = QPushButton("VER REGISTRO COMPLETO")
         self.btn_debug.clicked.connect(self.mostrar_registro)
-        container_layout.addWidget(self.btn_debug)
+
 
         self.btn_nuevo = QPushButton("NUEVO REGISTRO")
         self.btn_nuevo.clicked.connect(self.nuevo_registro)
 
+        # =========================
+        # BOTONES FIJOS ABAJO
+        # =========================
+        botones_layout = QVBoxLayout()
+        botones_layout.setContentsMargins(20, 8, 20, 8)
+        botones_layout.setSpacing(8)
+
+        for btn in [
+            self.print_btn,
+            self.load_btn,
+            self.btn_debug,
+            self.btn_nuevo
+        ]:
+            btn.setFixedWidth(500)
+            botones_layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        layout.addLayout(botones_layout)
+
         self.btn_pdf = QPushButton("Guardar PDF")
         self.btn_pdf.clicked.connect(lambda: exportar_a_pdf_imss(self))
-
-        container_layout.addWidget(self.btn_nuevo)
 
         self.cargar_demo()
 
@@ -1665,7 +2532,7 @@ class RegistroAnestesia(QWidget):
             "nombre": self.nombre.text(),
             "nss": self.nss.text(),
             "edad": self.edad.text(),
-            "sexo": self.sexo.text(),
+            "sexo": self.sexo.currentText(),
             "unidad": self.unidad.text()
         },
         "cirugia": {
@@ -1679,9 +2546,88 @@ class RegistroAnestesia(QWidget):
             "eventos": self.grafica.eventos_registrados,
             "medicamentos": self.grafica.obtener_medicamentos_registrados()
         }
+        
+        if self.grafica.rb_anestesia_general.isChecked():
+            tipo_anestesia = "General"
+        elif self.grafica.rb_anestesia_regional.isChecked():
+            tipo_anestesia = "Regional"
+        elif self.grafica.rb_anestesia_combinada.isChecked():
+            tipo_anestesia = "Combinada"
+        else:
+            tipo_anestesia = ""
+
+        subtecnica = ""
+
+        if self.grafica.rb_anestesia_general.isChecked():
+            if self.grafica.rb_general_balanceada.isChecked():
+                subtecnica = "Balanceada"
+            elif self.grafica.rb_general_tiva.isChecked():
+                subtecnica = "TIVA"
+            elif self.grafica.rb_general_inhalada.isChecked():
+                subtecnica = "Inhalada"
+
+        elif self.grafica.rb_anestesia_regional.isChecked():
+            if self.grafica.rb_regional_neuroaxial.isChecked():
+                subtecnica = "Neuroaxial"
+            elif self.grafica.rb_regional_periferico.isChecked():
+                subtecnica = "Periférico"
+            elif self.grafica.rb_regional_local.isChecked():
+                subtecnica = "Local"
+
+        elif self.grafica.rb_anestesia_combinada.isChecked():
+            if self.grafica.rb_combinada_general_regional.isChecked():
+                subtecnica = "General + regional"
+            elif self.grafica.rb_combinada_general_periferico.isChecked():
+                subtecnica = "General + periférico"
+
+        detalle_regional = {}
+
+        if self.grafica.rb_regional_neuroaxial.isChecked():
+            detalle_regional["tipo"] = "Neuroaxial"
+
+            if self.grafica.rb_intratecal.isChecked():
+                detalle_regional["subtipo"] = "Intratecal"
+            elif self.grafica.rb_peridural.isChecked():
+                detalle_regional["subtipo"] = "Peridural"
+
+            detalle_regional["nivel"] = self.grafica.input_nivel_puncion.text()
+            detalle_regional["tipo_aguja"] = self.grafica.input_tipo_aguja.text()
+            detalle_regional["anestesico_local"] = self.grafica.input_anestesico_local.text()
+
+        elif self.grafica.rb_regional_periferico.isChecked():
+            detalle_regional["tipo"] = "Periférico"
+
+            if self.grafica.rb_troncular.isChecked():
+                detalle_regional["subtipo"] = "Troncular"
+            elif self.grafica.rb_plexo.isChecked():
+                detalle_regional["subtipo"] = "Plexo"
+
+            detalle_regional["sitio"] = self.grafica.input_sitio_bloqueo.text()
+
+        registro["tecnica_anestesica"] = {
+            "tipo_anestesia": tipo_anestesia,
+            "subtecnica": subtecnica,
+            "detalle_regional": detalle_regional
+        }
+
+        registro["caso_obstetrico"] = {
+            "activo": self.grafica.chk_caso_obstetrico.isChecked(),
+            "sexo_rn": (
+                "Masculino" if self.grafica.chk_rn_masculino.isChecked()
+                else "Femenino" if self.grafica.chk_rn_femenino.isChecked()
+                else "Indeterminado" if self.grafica.chk_rn_indeterminado.isChecked()
+                else ""
+            ),
+            "peso_rn": self.grafica.input_rn_peso.text(),
+            "talla_rn": self.grafica.input_rn_talla.text(),
+            "apgar_1": self.grafica.input_apgar_1.text(),
+            "apgar_5": self.grafica.input_apgar_5.text(),
+            "apgar_10": self.grafica.input_apgar_10.text(),
+        }
 
         return registro
-    
+
+
     def cargar_demo(self):
         # =========================
         # Datos del paciente
@@ -1689,7 +2635,7 @@ class RegistroAnestesia(QWidget):
         self.nombre.setText("Juan Perez García")
         self.nss.setText("3298823465-7")
         self.edad.setText("42 años")
-        self.sexo.setText("Masculino")
+        self.sexo.setCurrentText("Masculino")
         self.unidad.setText("HGZ #18")
 
         # =========================
@@ -1864,7 +2810,7 @@ class RegistroAnestesia(QWidget):
             self.nombre.setText(str(paciente.get("nombre", "")))
             self.nss.setText(str(paciente.get("nss", "")))
             self.edad.setText(str(paciente.get("edad", "")))
-            self.sexo.setText(str(paciente.get("sexo", "")))
+            self.sexo.setCurrentText(str(paciente.get("sexo", "")))
             self.unidad.setText(str(paciente.get("unidad", "")))
 
             # =========================
@@ -1896,6 +2842,55 @@ class RegistroAnestesia(QWidget):
                 if 0 <= idx < len(self.grafica.inputs_medicamentos):
                     self.grafica.inputs_medicamentos[idx].setText(str(med.get("medicamento", "")))
                     self.grafica.inputs_dosis_via[idx].setText(str(med.get("dosis_via", "")))
+
+            # =========================
+            # Técnica anestésica
+            # =========================
+            tecnica = data.get("tecnica_anestesica", {})
+            tipo = tecnica.get("tipo_anestesia", "")
+            sub = tecnica.get("subtecnica", "")
+
+            # Reset de selección
+            for rb in [
+                self.grafica.rb_general_balanceada,
+                self.grafica.rb_general_tiva,
+                self.grafica.rb_general_inhalada,
+                self.grafica.rb_regional_neuroaxial,
+                self.grafica.rb_regional_periferico,
+                self.grafica.rb_regional_local,
+                self.grafica.rb_combinada_general_regional,
+                self.grafica.rb_combinada_general_periferico
+            ]:
+                rb.setChecked(False)
+
+            # Aplicar subtecnica
+            if sub == "Balanceada":
+                self.grafica.rb_general_balanceada.setChecked(True)
+            elif sub == "TIVA":
+                self.grafica.rb_general_tiva.setChecked(True)
+            elif sub == "Inhalada":
+                self.grafica.rb_general_inhalada.setChecked(True)
+
+            elif sub == "Neuroaxial":
+                self.grafica.rb_regional_neuroaxial.setChecked(True)
+            elif sub == "Periférico":
+                self.grafica.rb_regional_periferico.setChecked(True)
+            elif sub == "Local":
+                self.grafica.rb_regional_local.setChecked(True)
+
+            elif sub == "General + regional":
+                self.grafica.rb_combinada_general_regional.setChecked(True)
+            elif sub == "General + periférico":
+                self.grafica.rb_combinada_general_periferico.setChecked(True)
+
+            if tipo == "General":
+                self.grafica.rb_anestesia_general.setChecked(True)
+            elif tipo == "Regional":
+                self.grafica.rb_anestesia_regional.setChecked(True)
+            elif tipo == "Combinada":
+                self.grafica.rb_anestesia_combinada.setChecked(True)
+            else:
+                self.grafica.rb_anestesia_general.setChecked(True)
 
             # =========================
             # Eventos
@@ -1964,7 +2959,7 @@ class RegistroAnestesia(QWidget):
         self.nombre.clear()
         self.nss.clear()
         self.edad.clear()
-        self.sexo.clear()
+        self.sexo.setCurrentIndex(0)
         self.unidad.clear()
 
         # Cirugía
@@ -1997,6 +2992,8 @@ class RegistroAnestesia(QWidget):
         self.grafica.timer_sv.stop()
         self.grafica.btn_iniciar_sv.setEnabled(True)
         self.grafica.btn_pausar_sv.setEnabled(False)
+
+        self.grafica.rb_anestesia_general.setChecked(True)
 
         self.grafica.update()
 

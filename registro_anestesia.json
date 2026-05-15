@@ -1,6 +1,6 @@
 {
     "paciente": {
-        "nombre": "David Arvizo Huitron",
+        "nombre": "Juan Perez García",
         "nss": "3298823465-7",
         "edad": "42 años",
         "sexo": "Masculino",
@@ -12,7 +12,7 @@
         "dx_post": "Úlcera gástrica perforada",
         "cirugia_realizada": "Laparoscopía diagnóstica/Parche de Graham",
         "anestesiologo": "Dr. David Arvizo Huitron",
-        "cirujano": "Dr. German Felipe Wong Sanchez-Espino"
+        "cirujano": "Dr. Germán Felipe Wong Sánchez-Espino"
     },
     "eventos": [],
     "medicamentos": [
@@ -47,492 +47,503 @@
             "dosis_via": "8 mg IV"
         }
     ],
+    "tecnica_anestesica": {
+        "tipo_anestesia": "Regional",
+        "subtecnica": "Neuroaxial",
+        "detalle_regional": {
+            "tipo": "Neuroaxial",
+            "subtipo": "Intratecal",
+            "nivel": "L3-L4",
+            "tipo_aguja": "Whitacre 25G",
+            "anestesico_local": "Bupivacaina pesada"
+        }
+    },
     "signos_vitales_simulados": [
         {
             "col": 0,
-            "fc": 89,
+            "fc": 64,
             "tas": 137,
-            "tad": 77,
-            "spo2": 100,
+            "tad": 80,
+            "spo2": 99,
             "fio2": 40,
-            "flujo": 2.0,
-            "sevo": 2.0
+            "flujo": 1.5,
+            "sevo": 2.6
         },
         {
             "col": 1,
-            "fc": 90,
-            "tas": 126,
-            "tad": 81,
-            "spo2": 99,
-            "fio2": 40,
-            "flujo": 3.0,
-            "sevo": 1.8
+            "fc": 70,
+            "tas": 117,
+            "tad": 73,
+            "spo2": 100,
+            "fio2": 65,
+            "flujo": 2.5,
+            "sevo": 2.4
         },
         {
             "col": 2,
-            "fc": 60,
+            "fc": 86,
             "tas": 117,
-            "tad": 87,
-            "spo2": 99,
-            "fio2": 85,
-            "flujo": 1.0,
+            "tad": 90,
+            "spo2": 100,
+            "fio2": 80,
+            "flujo": 3.0,
             "sevo": 2.8
         },
         {
             "col": 3,
-            "fc": 90,
-            "tas": 127,
-            "tad": 70,
-            "spo2": 98,
+            "fc": 76,
+            "tas": 118,
+            "tad": 79,
+            "spo2": 97,
             "fio2": 75,
-            "flujo": 2.0,
-            "sevo": 3.0
+            "flujo": 1.5,
+            "sevo": 2.4
         },
         {
             "col": 4,
-            "fc": 77,
-            "tas": 126,
-            "tad": 72,
-            "spo2": 100,
-            "fio2": 65,
-            "flujo": 2.0,
-            "sevo": 2.0
+            "fc": 88,
+            "tas": 118,
+            "tad": 73,
+            "spo2": 99,
+            "fio2": 70,
+            "flujo": 3.0,
+            "sevo": 2.4
         },
         {
             "col": 5,
-            "fc": 85,
-            "tas": 130,
-            "tad": 78,
-            "spo2": 97,
-            "fio2": 65,
+            "fc": 77,
+            "tas": 131,
+            "tad": 85,
+            "spo2": 100,
+            "fio2": 85,
             "flujo": 2.5,
-            "sevo": 2.6
-        },
-        {
-            "col": 6,
-            "fc": 78,
-            "tas": 129,
-            "tad": 83,
-            "spo2": 98,
-            "fio2": 80,
-            "flujo": 3.0,
-            "sevo": 2.6
-        },
-        {
-            "col": 7,
-            "fc": 75,
-            "tas": 111,
-            "tad": 83,
-            "spo2": 97,
-            "fio2": 50,
-            "flujo": 3.0,
             "sevo": 2.8
         },
         {
-            "col": 8,
-            "fc": 81,
-            "tas": 139,
-            "tad": 90,
-            "spo2": 99,
-            "fio2": 75,
-            "flujo": 2.0,
-            "sevo": 3.0
-        },
-        {
-            "col": 9,
-            "fc": 82,
-            "tas": 114,
-            "tad": 71,
+            "col": 6,
+            "fc": 80,
+            "tas": 134,
+            "tad": 84,
             "spo2": 97,
-            "fio2": 50,
-            "flujo": 1.5,
+            "fio2": 40,
+            "flujo": 2.5,
             "sevo": 2.0
         },
         {
-            "col": 10,
-            "fc": 65,
-            "tas": 121,
-            "tad": 71,
-            "spo2": 97,
-            "fio2": 80,
+            "col": 7,
+            "fc": 76,
+            "tas": 134,
+            "tad": 73,
+            "spo2": 99,
+            "fio2": 45,
             "flujo": 3.0,
+            "sevo": 3.0
+        },
+        {
+            "col": 8,
+            "fc": 62,
+            "tas": 139,
+            "tad": 83,
+            "spo2": 99,
+            "fio2": 85,
+            "flujo": 3.0,
+            "sevo": 2.6
+        },
+        {
+            "col": 9,
+            "fc": 87,
+            "tas": 135,
+            "tad": 78,
+            "spo2": 97,
+            "fio2": 40,
+            "flujo": 2.5,
+            "sevo": 2.8
+        },
+        {
+            "col": 10,
+            "fc": 86,
+            "tas": 114,
+            "tad": 76,
+            "spo2": 98,
+            "fio2": 40,
+            "flujo": 2.0,
             "sevo": 2.0
         },
         {
             "col": 11,
-            "fc": 75,
+            "fc": 86,
             "tas": 127,
-            "tad": 83,
+            "tad": 73,
             "spo2": 100,
             "fio2": 75,
             "flujo": 1.5,
-            "sevo": 1.8
+            "sevo": 3.0
         },
         {
             "col": 12,
-            "fc": 61,
-            "tas": 117,
-            "tad": 86,
-            "spo2": 99,
-            "fio2": 60,
-            "flujo": 2.5,
+            "fc": 73,
+            "tas": 120,
+            "tad": 70,
+            "spo2": 97,
+            "fio2": 70,
+            "flujo": 3.0,
             "sevo": 3.0
         },
         {
             "col": 13,
-            "fc": 67,
-            "tas": 133,
-            "tad": 73,
-            "spo2": 97,
-            "fio2": 75,
-            "flujo": 1.5,
-            "sevo": 1.8
+            "fc": 68,
+            "tas": 128,
+            "tad": 87,
+            "spo2": 99,
+            "fio2": 80,
+            "flujo": 2.0,
+            "sevo": 3.0
         },
         {
             "col": 14,
-            "fc": 64,
-            "tas": 125,
-            "tad": 74,
-            "spo2": 97,
-            "fio2": 45,
-            "flujo": 3.0,
-            "sevo": 2.6
+            "fc": 60,
+            "tas": 128,
+            "tad": 82,
+            "spo2": 100,
+            "fio2": 85,
+            "flujo": 1.0,
+            "sevo": 2.2
         },
         {
             "col": 15,
-            "fc": 60,
-            "tas": 111,
-            "tad": 76,
-            "spo2": 97,
-            "fio2": 75,
-            "flujo": 3.0,
+            "fc": 90,
+            "tas": 123,
+            "tad": 72,
+            "spo2": 98,
+            "fio2": 40,
+            "flujo": 1.0,
             "sevo": 2.4
         },
         {
             "col": 16,
-            "fc": 63,
-            "tas": 120,
-            "tad": 89,
+            "fc": 69,
+            "tas": 137,
+            "tad": 72,
             "spo2": 100,
-            "fio2": 40,
-            "flujo": 2.5,
-            "sevo": 2.4
+            "fio2": 85,
+            "flujo": 3.0,
+            "sevo": 2.8
         },
         {
             "col": 17,
-            "fc": 66,
-            "tas": 114,
-            "tad": 79,
-            "spo2": 100,
-            "fio2": 75,
-            "flujo": 1.5,
-            "sevo": 2.4
+            "fc": 62,
+            "tas": 128,
+            "tad": 81,
+            "spo2": 97,
+            "fio2": 50,
+            "flujo": 3.0,
+            "sevo": 2.8
         },
         {
             "col": 18,
-            "fc": 60,
-            "tas": 134,
-            "tad": 74,
-            "spo2": 97,
-            "fio2": 55,
-            "flujo": 3.0,
-            "sevo": 2.2
+            "fc": 71,
+            "tas": 111,
+            "tad": 70,
+            "spo2": 98,
+            "fio2": 80,
+            "flujo": 2.5,
+            "sevo": 2.6
         },
         {
             "col": 19,
-            "fc": 82,
-            "tas": 119,
-            "tad": 73,
+            "fc": 65,
+            "tas": 118,
+            "tad": 78,
             "spo2": 97,
-            "fio2": 75,
-            "flujo": 2.5,
-            "sevo": 2.0
+            "fio2": 65,
+            "flujo": 3.0,
+            "sevo": 1.8
         },
         {
             "col": 20,
-            "fc": 72,
-            "tas": 139,
-            "tad": 74,
-            "spo2": 100,
-            "fio2": 55,
+            "fc": 74,
+            "tas": 117,
+            "tad": 78,
+            "spo2": 97,
+            "fio2": 40,
             "flujo": 2.5,
-            "sevo": 2.0
+            "sevo": 3.0
         },
         {
             "col": 21,
-            "fc": 62,
-            "tas": 133,
-            "tad": 90,
-            "spo2": 97,
-            "fio2": 75,
-            "flujo": 2.0,
-            "sevo": 2.0
+            "fc": 67,
+            "tas": 110,
+            "tad": 75,
+            "spo2": 99,
+            "fio2": 55,
+            "flujo": 3.0,
+            "sevo": 2.4
         },
         {
             "col": 22,
-            "fc": 67,
-            "tas": 117,
-            "tad": 84,
+            "fc": 78,
+            "tas": 122,
+            "tad": 88,
             "spo2": 99,
-            "fio2": 70,
-            "flujo": 1.0,
+            "fio2": 75,
+            "flujo": 2.0,
             "sevo": 2.0
         },
         {
             "col": 23,
-            "fc": 72,
-            "tas": 137,
-            "tad": 71,
+            "fc": 68,
+            "tas": 129,
+            "tad": 77,
             "spo2": 100,
-            "fio2": 55,
-            "flujo": 1.5,
-            "sevo": 2.2
+            "fio2": 40,
+            "flujo": 3.0,
+            "sevo": 2.6
         },
         {
             "col": 24,
-            "fc": 81,
-            "tas": 110,
-            "tad": 80,
-            "spo2": 97,
-            "fio2": 45,
-            "flujo": 2.0,
-            "sevo": 2.2
+            "fc": 65,
+            "tas": 112,
+            "tad": 90,
+            "spo2": 98,
+            "fio2": 80,
+            "flujo": 1.0,
+            "sevo": 2.6
         },
         {
             "col": 25,
-            "fc": 64,
-            "tas": 112,
-            "tad": 73,
-            "spo2": 98,
-            "fio2": 40,
-            "flujo": 1.5,
+            "fc": 70,
+            "tas": 113,
+            "tad": 90,
+            "spo2": 97,
+            "fio2": 70,
+            "flujo": 2.5,
             "sevo": 2.2
         },
         {
             "col": 26,
-            "fc": 89,
-            "tas": 131,
-            "tad": 76,
-            "spo2": 98,
-            "fio2": 70,
-            "flujo": 1.0,
-            "sevo": 2.6
+            "fc": 90,
+            "tas": 125,
+            "tad": 86,
+            "spo2": 99,
+            "fio2": 45,
+            "flujo": 3.0,
+            "sevo": 2.2
         },
         {
             "col": 27,
-            "fc": 72,
-            "tas": 130,
-            "tad": 70,
+            "fc": 74,
+            "tas": 138,
+            "tad": 72,
             "spo2": 97,
-            "fio2": 75,
-            "flujo": 3.0,
+            "fio2": 60,
+            "flujo": 1.5,
             "sevo": 2.2
         },
         {
             "col": 28,
-            "fc": 71,
-            "tas": 132,
-            "tad": 70,
+            "fc": 73,
+            "tas": 126,
+            "tad": 90,
             "spo2": 97,
-            "fio2": 40,
-            "flujo": 3.0,
-            "sevo": 2.2
+            "fio2": 55,
+            "flujo": 2.5,
+            "sevo": 1.8
         },
         {
             "col": 29,
-            "fc": 82,
-            "tas": 123,
-            "tad": 84,
-            "spo2": 97,
-            "fio2": 85,
+            "fc": 80,
+            "tas": 139,
+            "tad": 87,
+            "spo2": 100,
+            "fio2": 60,
             "flujo": 2.5,
-            "sevo": 2.2
+            "sevo": 2.0
         },
         {
             "col": 30,
-            "fc": 69,
-            "tas": 110,
-            "tad": 74,
-            "spo2": 99,
-            "fio2": 60,
-            "flujo": 1.0,
-            "sevo": 2.4
+            "fc": 73,
+            "tas": 124,
+            "tad": 86,
+            "spo2": 97,
+            "fio2": 45,
+            "flujo": 1.5,
+            "sevo": 2.2
         },
         {
             "col": 31,
-            "fc": 73,
-            "tas": 122,
-            "tad": 82,
-            "spo2": 99,
-            "fio2": 55,
-            "flujo": 3.0,
-            "sevo": 3.0
-        },
-        {
-            "col": 32,
-            "fc": 65,
-            "tas": 114,
-            "tad": 73,
+            "fc": 85,
+            "tas": 129,
+            "tad": 74,
             "spo2": 97,
-            "fio2": 85,
-            "flujo": 2.0,
-            "sevo": 2.8
-        },
-        {
-            "col": 33,
-            "fc": 65,
-            "tas": 116,
-            "tad": 86,
-            "spo2": 98,
-            "fio2": 50,
-            "flujo": 1.0,
-            "sevo": 3.0
-        },
-        {
-            "col": 34,
-            "fc": 62,
-            "tas": 121,
-            "tad": 90,
-            "spo2": 98,
-            "fio2": 50,
+            "fio2": 60,
             "flujo": 1.5,
             "sevo": 2.8
         },
         {
-            "col": 35,
-            "fc": 68,
-            "tas": 118,
-            "tad": 89,
+            "col": 32,
+            "fc": 69,
+            "tas": 129,
+            "tad": 79,
             "spo2": 97,
+            "fio2": 75,
+            "flujo": 2.0,
+            "sevo": 1.8
+        },
+        {
+            "col": 33,
+            "fc": 69,
+            "tas": 140,
+            "tad": 90,
+            "spo2": 99,
             "fio2": 75,
             "flujo": 2.5,
             "sevo": 2.2
         },
         {
-            "col": 36,
-            "fc": 65,
-            "tas": 118,
-            "tad": 78,
-            "spo2": 98,
-            "fio2": 60,
-            "flujo": 1.5,
-            "sevo": 1.8
-        },
-        {
-            "col": 37,
-            "fc": 80,
-            "tas": 138,
-            "tad": 84,
-            "spo2": 99,
-            "fio2": 55,
-            "flujo": 1.0,
-            "sevo": 3.0
-        },
-        {
-            "col": 38,
-            "fc": 60,
-            "tas": 114,
-            "tad": 73,
-            "spo2": 97,
-            "fio2": 45,
-            "flujo": 1.5,
-            "sevo": 1.8
-        },
-        {
-            "col": 39,
-            "fc": 88,
-            "tas": 111,
-            "tad": 81,
+            "col": 34,
+            "fc": 73,
+            "tas": 110,
+            "tad": 75,
             "spo2": 98,
             "fio2": 55,
-            "flujo": 2.0,
+            "flujo": 1.5,
             "sevo": 2.6
         },
         {
-            "col": 40,
-            "fc": 80,
-            "tas": 126,
-            "tad": 76,
-            "spo2": 100,
+            "col": 35,
+            "fc": 73,
+            "tas": 127,
+            "tad": 84,
+            "spo2": 99,
+            "fio2": 50,
+            "flujo": 3.0,
+            "sevo": 2.0
+        },
+        {
+            "col": 36,
+            "fc": 70,
+            "tas": 131,
+            "tad": 86,
+            "spo2": 97,
             "fio2": 70,
-            "flujo": 2.0,
+            "flujo": 1.5,
+            "sevo": 2.8
+        },
+        {
+            "col": 37,
+            "fc": 60,
+            "tas": 134,
+            "tad": 70,
+            "spo2": 98,
+            "fio2": 60,
+            "flujo": 2.5,
+            "sevo": 1.8
+        },
+        {
+            "col": 38,
+            "fc": 74,
+            "tas": 115,
+            "tad": 72,
+            "spo2": 99,
+            "fio2": 50,
+            "flujo": 1.5,
+            "sevo": 2.6
+        },
+        {
+            "col": 39,
+            "fc": 82,
+            "tas": 128,
+            "tad": 72,
+            "spo2": 100,
+            "fio2": 75,
+            "flujo": 1.5,
             "sevo": 2.2
         },
         {
-            "col": 41,
-            "fc": 72,
-            "tas": 117,
-            "tad": 76,
+            "col": 40,
+            "fc": 67,
+            "tas": 132,
+            "tad": 87,
             "spo2": 98,
             "fio2": 70,
-            "flujo": 2.5,
+            "flujo": 1.5,
+            "sevo": 2.6
+        },
+        {
+            "col": 41,
+            "fc": 65,
+            "tas": 114,
+            "tad": 70,
+            "spo2": 99,
+            "fio2": 85,
+            "flujo": 3.0,
             "sevo": 2.0
         },
         {
             "col": 42,
-            "fc": 76,
-            "tas": 114,
-            "tad": 89,
-            "spo2": 98,
-            "fio2": 40,
-            "flujo": 2.0,
-            "sevo": 3.0
-        },
-        {
-            "col": 43,
-            "fc": 69,
-            "tas": 131,
-            "tad": 83,
-            "spo2": 99,
-            "fio2": 60,
-            "flujo": 2.5,
-            "sevo": 2.2
-        },
-        {
-            "col": 44,
-            "fc": 76,
-            "tas": 126,
-            "tad": 73,
-            "spo2": 99,
-            "fio2": 60,
-            "flujo": 2.5,
-            "sevo": 3.0
-        },
-        {
-            "col": 45,
-            "fc": 79,
-            "tas": 124,
-            "tad": 72,
-            "spo2": 97,
-            "fio2": 50,
-            "flujo": 3.0,
+            "fc": 66,
+            "tas": 125,
+            "tad": 88,
+            "spo2": 100,
+            "fio2": 80,
+            "flujo": 1.0,
             "sevo": 2.8
         },
         {
-            "col": 46,
-            "fc": 60,
-            "tas": 114,
-            "tad": 88,
+            "col": 43,
+            "fc": 64,
+            "tas": 136,
+            "tad": 80,
             "spo2": 99,
-            "fio2": 60,
-            "flujo": 1.0,
+            "fio2": 85,
+            "flujo": 1.5,
             "sevo": 2.0
         },
         {
-            "col": 47,
-            "fc": 90,
-            "tas": 133,
-            "tad": 85,
+            "col": 44,
+            "fc": 74,
+            "tas": 120,
+            "tad": 75,
+            "spo2": 97,
+            "fio2": 70,
+            "flujo": 3.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 45,
+            "fc": 83,
+            "tas": 116,
+            "tad": 90,
             "spo2": 98,
-            "fio2": 40,
+            "fio2": 65,
+            "flujo": 1.0,
+            "sevo": 2.4
+        },
+        {
+            "col": 46,
+            "fc": 88,
+            "tas": 131,
+            "tad": 83,
+            "spo2": 99,
+            "fio2": 75,
+            "flujo": 3.0,
+            "sevo": 2.2
+        },
+        {
+            "col": 47,
+            "fc": 62,
+            "tas": 116,
+            "tad": 78,
+            "spo2": 98,
+            "fio2": 70,
             "flujo": 2.5,
-            "sevo": 1.8
+            "sevo": 2.8
         }
     ],
     "temperatura_simulada": [
         {
             "col": 0,
-            "temp": 36.4
+            "temp": 37.0
         },
         {
             "col": 3,
@@ -540,27 +551,27 @@
         },
         {
             "col": 6,
-            "temp": 36.9
+            "temp": 36.4
         },
         {
             "col": 9,
-            "temp": 37.0
+            "temp": 36.8
         },
         {
             "col": 12,
-            "temp": 36.6
-        },
-        {
-            "col": 15,
-            "temp": 36.7
-        },
-        {
-            "col": 18,
             "temp": 36.5
         },
         {
+            "col": 15,
+            "temp": 36.9
+        },
+        {
+            "col": 18,
+            "temp": 37.1
+        },
+        {
             "col": 21,
-            "temp": 36.7
+            "temp": 36.8
         },
         {
             "col": 24,
@@ -568,31 +579,31 @@
         },
         {
             "col": 27,
-            "temp": 37.0
+            "temp": 36.6
         },
         {
             "col": 30,
-            "temp": 37.0
+            "temp": 36.6
         },
         {
             "col": 33,
-            "temp": 36.8
+            "temp": 36.5
         },
         {
             "col": 36,
-            "temp": 37.2
+            "temp": 36.9
         },
         {
             "col": 39,
-            "temp": 36.6
+            "temp": 36.9
         },
         {
             "col": 42,
-            "temp": 36.6
+            "temp": 36.2
         },
         {
             "col": 45,
-            "temp": 36.5
+            "temp": 37.1
         }
     ],
     "respiracion_simulada": [

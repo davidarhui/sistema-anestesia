@@ -77,8 +77,33 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             painter.setFont(font_text)
             painter.drawText(x + label_w, y, str(valor))
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(x + label_w, y + mm(1.0), x + label_w + line_w, y + mm(1.0))
+
+        def draw_field_inline(x, y, label, valor, label_w, field_w):
+            painter.setFont(font_label)
+            painter.drawText(
+                QRect(int(x), int(y - mm(3)), int(label_w), mm(5)),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                label
+            )
+
+            text_x = x + label_w
+
+            painter.setFont(font_text)
+            painter.drawText(
+                QRect(int(text_x), int(y - mm(3)), int(field_w), mm(5)),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                str(valor)
+            )
+
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
+            painter.drawLine(
+                int(text_x),
+                int(y + mm(1.0)),
+                int(text_x + field_w),
+                int(y + mm(1.0))
+            )
 
         def draw_unidad_field(x, y, valor, total_w):
             painter.setFont(font_label)
@@ -108,7 +133,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 texto
             )
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(text_x, y + mm(1.0), x + total_w, y + mm(1.0))
 
         def draw_medico_field(x, y, label, valor, label_w, total_w):
@@ -142,7 +167,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
             linea_y = y + alto_texto - mm(5)
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(text_x, linea_y, x + total_w, linea_y)
 
             return linea_y
@@ -176,7 +201,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 texto
             )
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(text_x, linea_y, x + total_w, linea_y)
 
             return linea_y
@@ -274,7 +299,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         # =========================
         # TÍTULO
         # =========================
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
         painter.setFont(font_title)
         painter.drawText(
             QRect(area_x, y, area_w, mm(8)),
@@ -284,69 +309,60 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         y += mm(11)
 
         # =========================
-        # ENCABEZADO
+        # ENCABEZADO estilo UI / IMSS
         # =========================
-        col1_x = area_x
-        col2_x = area_x + int(area_w * 0.34)
 
-        draw_line_field(col1_x, y, "Nombre:", paciente["nombre"], mm(16), mm(72))
+        x1 = area_x
+        x2 = area_x + mm(95)
 
-        x_nss = area_x + int(area_w * 0.62)  # 👈 ajusta este valor
-        draw_line_field(x_nss, y, "NSS:", paciente["nss"], mm(10), mm(50))
+        # Fila 1: Nombre / NSS
+        draw_field_inline(x1, y, "Nombre:", paciente["nombre"], mm(15), mm(70))
+        draw_field_inline(x2, y, "NSS:", paciente["nss"], mm(10), mm(45))
         y += mm(7)
 
-        draw_line_field(col1_x, y, "Edad:", paciente["edad"], mm(10), mm(22))
-        draw_line_field(col2_x, y, "Sexo:", paciente["sexo"], mm(10), mm(16))
-
-        x_unidad = col2_x + mm(28)
-        w_unidad_total = area_x + area_w - x_unidad
-
-        draw_unidad_field(x_unidad, y, paciente["unidad"], w_unidad_total)
-
+        # Fila 2: Edad / Sexo / Unidad
+        draw_field_inline(x1, y, "Edad:", paciente["edad"], mm(12), mm(25))
+        draw_field_inline(x1 + mm(50), y, "Sexo:", paciente["sexo"], mm(12), mm(30))
+        draw_field_inline(x1 + mm(95), y, "Unidad:", paciente["unidad"], mm(16), mm(55))
         y += mm(7)
 
+        # Campos largos
         x_texto_dx_cx = area_x + mm(43)
 
         linea_y = draw_wrapped_field(area_x, y, "Diagnóstico preoperatorio:", cirugia["dx_pre"], x_texto_dx_cx, area_w)
-        y = linea_y + mm(6)
+        y = linea_y + mm(7)
 
         linea_y = draw_wrapped_field(area_x, y, "Cirugía programada:", cirugia["cirugia_programada"], x_texto_dx_cx, area_w)
-        y = linea_y + mm(6)
+        y = linea_y + mm(7)
 
         linea_y = draw_wrapped_field(area_x, y, "Diagnóstico operatorio:", cirugia["dx_post"], x_texto_dx_cx, area_w)
-        y = linea_y + mm(6)
+        y = linea_y + mm(7)
 
         linea_y = draw_wrapped_field(area_x, y, "Cirugía realizada:", cirugia["cirugia_realizada"], x_texto_dx_cx, area_w)
-        y = linea_y + mm(6)
+        y = linea_y + mm(7)
 
-        # SIN espacio extra arriba
-        x_anest = area_x
-        x_cirujano = area_x + int(area_w * 0.50)
-
-        w_anest_total = x_cirujano - x_anest - mm(6)
-        w_cirujano_total = area_x + area_w - x_cirujano
-
-        linea_anest = draw_medico_field(
-            x_anest,
+        # Médicos
+        draw_field_inline(
+            area_x,
             y,
             "Anestesiólogo:",
             cirugia.get("anestesiologo", ""),
             mm(28),
-            w_anest_total
+            mm(60)
         )
 
-        linea_cirujano = draw_medico_field(
-            x_cirujano,
+        draw_field_inline(
+            area_x + mm(100),
             y,
             "Cirujano:",
             cirugia.get("cirujano", ""),
             mm(18),
-            w_cirujano_total
+            mm(62)
         )
 
-        y = max(linea_anest, linea_cirujano) + mm(6)
+        y += mm(8)
 
-        y_inicio_grafica = y
+        y_inicio_grafica = y - mm(8) 
 
         # =========================
         # GEOMETRÍA PRINCIPAL
@@ -395,11 +411,11 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             else:
                 mostrar_agentes_cada = 1   # cada 5 min normal
 
-            y = y_inicio_grafica
+            y = y_inicio_grafica + mm(2)
 
             alto_fila_ag = mm(5)
             alto_banda_min = mm(4)
-            alto_sv = mm(68)
+            alto_sv = mm(64)
 
             num_filas = 20
             alto_fila = alto_sv / num_filas
@@ -415,7 +431,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             # =========================
             # AGENTES
             # =========================
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.setFont(font_small_bold)
 
             y_agentes_label = y_ag_top + alto_fila_ag * 2 - mm(1.2)
@@ -451,7 +467,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                 painter.drawLine(int(xx), int(y_ag_top), int(xx), int(y_ag_bottom))
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.setFont(font_small)
 
             y_sevo = y_ag_top + alto_fila_ag * 0.70
@@ -498,7 +514,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             # =========================
             # FRANJA DE MINUTOS
             # =========================
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(int(x_grid), int(y_min_top), int(x_grid + w_grid), int(y_min_top))
             painter.drawLine(int(x_grid), int(y_min_bottom), int(x_grid + w_grid), int(y_min_bottom))
 
@@ -550,7 +566,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                 painter.drawLine(int(xx), int(y_sv_top), int(xx), int(y_sv_bottom))
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.setFont(font_micro)
 
             for valor in [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]:
@@ -562,7 +578,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
             # Línea separadora arriba del bloque respiración
             y_sep_resp = y_sv_bottom - (alto_fila * 3)
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(int(x_grid), int(y_sep_resp), int(x_grid + w_grid), int(y_sep_resp))
 
             # Datos SV
@@ -660,7 +676,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             # =========================
             # COLUMNA IZQUIERDA: SIMBOLOGÍA + EVENTOS
             # =========================
-            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
 
             eventos_labels = [
                 "1. LLEG. QUIR.",
@@ -750,24 +766,24 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 # =========================
                 # TABLA DE MEDICAMENTOS
                 # =========================
-                y_tabla = y_sv_bottom + mm(10)
+                y_tabla = y_sv_bottom + mm(13)
 
                 x_letra = area_x + mm(1)
-                w_letra = mm(7)
-                w_med = mm(48)
-                w_dosis = mm(30)
+                w_letra = mm(8)
+                w_med = mm(52)
+                w_dosis = mm(28)
 
                 x1 = x_letra + w_letra
                 x2 = x1 + w_med
                 x3 = x2 + w_dosis
 
                 alto_header = mm(5)
-                alto_fila_med = mm(5)
+                alto_fila_med = mm(6)
                 total_filas = len(graf.filas_meds)
 
                 y_tabla_bottom = y_tabla + alto_header + total_filas * alto_fila_med
 
-                painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
                 painter.drawRect(int(x_letra), int(y_tabla), int(x3 - x_letra), int(y_tabla_bottom - y_tabla))
                 painter.drawLine(int(x1), int(y_tabla), int(x1), int(y_tabla_bottom))
                 painter.drawLine(int(x2), int(y_tabla), int(x2), int(y_tabla_bottom))
@@ -808,6 +824,168 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                         dosis
                     )
+
+                # =========================
+                # MÉTODO Y TÉCNICA ANESTÉSICA
+                # =========================
+
+                x_tipo = mm(110)
+                y_tipo = y_tabla
+                w_tipo = mm(70)
+                h_tipo = mm(52)
+
+                painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                painter.drawRect(x_tipo, y_tipo, w_tipo, h_tipo)
+
+                painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
+                painter.drawText(
+                    QRect(int(x_tipo), int(y_tipo), int(w_tipo), int(mm(6))),
+                    Qt.AlignmentFlag.AlignCenter,
+                    "MÉTODO Y TÉCNICA ANESTÉSICA"
+                )
+
+                registro = ventana.obtener_registro_completo()
+
+                caso_obstetrico = registro.get("caso_obstetrico", {})
+                sexo_rn = caso_obstetrico.get("sexo_rn", "")
+
+                tecnica = registro.get("tecnica_anestesica", {})
+
+                tipo = tecnica.get("tipo_anestesia", "")
+                sub = tecnica.get("subtecnica", "")
+                detalle = tecnica.get("detalle_regional", {}) or {}
+
+                caso_ob = registro.get("caso_obstetrico", {})
+
+                if caso_ob.get("activo"):
+                    pass
+
+                def draw_checkbox(x, y, texto, marcado=False):
+                    size = mm(3)
+
+                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawRect(int(x), int(y), int(size), int(size))
+
+                    if marcado:
+                        painter.setFont(QFont("Arial", 7, QFont.Weight.Bold))
+                        painter.drawText(
+                            QRect(int(x), int(y - mm(0.7)), int(size), int(size + mm(1))),
+                            Qt.AlignmentFlag.AlignCenter,
+                            "✓"
+                        )
+
+                    painter.setFont(QFont("Arial", 6))
+                    painter.drawText(
+                        QRect(int(x + size + mm(1)), int(y - mm(0.7)), int(mm(28)), int(size + mm(1))),
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                        texto
+                    )
+
+
+                painter.setFont(QFont("Arial", 6, QFont.Weight.Bold))
+
+                y_texto = y_tipo + mm(10)
+
+                painter.drawText(
+                    int(x_tipo + mm(5)),
+                    int(y_texto),
+                    f"(X) {tipo.upper()}"
+                )
+
+                painter.drawText(
+                    int(x_tipo + mm(9)),
+                    int(y_texto + mm(6)),
+                    f"(X) {sub}"
+                )
+
+                if tipo == "Regional" and detalle:
+                    subtipo = detalle.get("subtipo", "")
+                    nivel = detalle.get("nivel", "")
+                    tipo_aguja = detalle.get("tipo_aguja", "")
+                    anestesico_local = detalle.get("anestesico_local", "")
+                    sitio = detalle.get("sitio", "")
+
+                    y_detalle = y_texto + mm(12)
+
+                    if subtipo:
+                        painter.drawText(
+                            int(x_tipo + mm(13)),
+                            int(y_detalle),
+                            f"(X) {subtipo}"
+                        )
+                        y_detalle += mm(5)
+
+                    if nivel:
+                        painter.drawText(
+                            int(x_tipo + mm(13)),
+                            int(y_detalle),
+                            f"Nivel: {nivel}"
+                        )
+                        y_detalle += mm(5)
+
+                    if tipo_aguja:
+                        painter.drawText(
+                            int(x_tipo + mm(13)),
+                            int(y_detalle),
+                            f"Aguja: {tipo_aguja}"
+                        )
+                        y_detalle += mm(5)
+
+                    if anestesico_local:
+                        painter.drawText(
+                            int(x_tipo + mm(13)),
+                            int(y_detalle),
+                            f"Anest. local: {anestesico_local}"
+                        )
+                        y_detalle += mm(5)
+
+                    if sitio:
+                        painter.drawText(
+                            int(x_tipo + mm(13)),
+                            int(y_detalle),
+                            f"Sitio: {sitio}"
+                        )
+                    
+                    # =========================
+                    # CASOS OBSTÉTRICOS
+                    # =========================
+                    if caso_ob.get("activo"):
+                        x_obs = x_tipo
+                        y_obs = y_tipo + h_tipo + mm(3)
+                        w_obs = w_tipo
+                        h_obs = mm(32)
+
+                        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                        painter.drawRect(int(x_obs), int(y_obs), int(w_obs), int(h_obs))
+
+                        painter.setFont(QFont("Arial", 7, QFont.Weight.Bold))
+                        painter.drawText(
+                            QRect(int(x_obs), int(y_obs), int(w_obs), int(mm(5))),
+                            Qt.AlignmentFlag.AlignCenter,
+                            "CASOS OBSTÉTRICOS"
+                        )
+
+                        sexo_rn = caso_ob.get("sexo_rn", "")
+                        peso_rn = caso_ob.get("peso_rn", "")
+                        talla_rn = caso_ob.get("talla_rn", "")
+                        apgar_1 = caso_ob.get("apgar_1", "")
+                        apgar_5 = caso_ob.get("apgar_5", "")
+                        apgar_10 = caso_ob.get("apgar_10", "")
+
+                        painter.setFont(QFont("Arial", 6))
+
+                        y_linea = y_obs + mm(10)
+
+                        painter.drawText(int(x_obs + mm(3)), int(y_linea), f"RN Sexo: {sexo_rn}")
+                        painter.drawText(int(x_obs + mm(30)), int(y_linea), f"Peso: {peso_rn}")
+                        painter.drawText(int(x_obs + mm(52)), int(y_linea), f"Talla: {talla_rn}")
+
+                        y_linea += mm(6)
+
+                        painter.drawText(int(x_obs + mm(3)), int(y_linea), f"Apgar 1 min: {apgar_1}")
+                        painter.drawText(int(x_obs + mm(30)), int(y_linea), f"5 min: {apgar_5}")
+                        painter.drawText(int(x_obs + mm(50)), int(y_linea), f"10 min: {apgar_10}")    
 
     except Exception as e:
         QMessageBox.critical(ventana, "Error", f"No se pudo generar el PDF.\n\n{e}")
