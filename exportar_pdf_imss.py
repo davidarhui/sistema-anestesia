@@ -66,7 +66,10 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         def temperatura_a_y(valor, y_top, y_bottom):
             vmin = 34.0
             vmax = 40.0
+
+            valor = float(valor)
             valor = max(vmin, min(vmax, valor))
+
             proporcion = (valor - vmin) / (vmax - vmin)
             return y_bottom - proporcion * (y_bottom - y_top)
 
@@ -233,16 +236,18 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         def draw_fc_point(x, y):
             painter.setPen(QPen(Qt.GlobalColor.black, pen_scaled(0.35, ref_escala)))
             painter.setBrush(QColor("black"))
-            r = clamp(ref_escala * 0.10, mm(0.35), mm(0.8))
+
+            # Similar al punto de pantalla, pero escalado al PDF
+            r = clamp(ref_escala * 0.12, mm(0.35), mm(0.9))
             painter.drawEllipse(QPointF(x, y), r, r)
 
         def draw_temp_triangle(x, y):
             painter.setPen(QPen(Qt.GlobalColor.black, pen_scaled(0.7, ref_escala)))
             painter.setBrush(Qt.BrushStyle.NoBrush)
 
-            dx = clamp(ref_escala * 0.14, mm(0.5), mm(1.0))
-            dy_up = clamp(ref_escala * 0.18, mm(0.7), mm(1.3))
-            dy_down = clamp(ref_escala * 0.12, mm(0.5), mm(0.9))
+            dx = clamp(ref_escala * 0.18, mm(0.6), mm(1.2))
+            dy_up = clamp(ref_escala * 0.22, mm(0.8), mm(1.5))
+            dy_down = clamp(ref_escala * 0.14, mm(0.5), mm(1.0))
 
             pts = QPolygonF([
                 QPointF(x, y - dy_up),
@@ -306,7 +311,16 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             Qt.AlignmentFlag.AlignCenter,
             "REGISTRO DE ANESTESIA Y RECUPERACIÓN"
         )
-        y += mm(11)
+
+        painter.setFont(font_small)
+
+        painter.drawText(
+            QRect(area_x, y + mm(7), area_w, mm(4)),
+            Qt.AlignmentFlag.AlignRight,
+            f"Registro: {datos.get('metadata', {}).get('fecha_creacion', '')}"
+        )
+
+        y += mm(13)
 
         # =========================
         # ENCABEZADO estilo UI / IMSS
@@ -381,8 +395,9 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         cols_sv = [d.get("col", 0) for d in graf.datos_sv]
         cols_temp = [d.get("col", 0) for d in graf.datos_temp]
         cols_resp = [d.get("col", 0) for d in graf.datos_resp]
+        cols_meds = [m.get("col", 0) for m in getattr(graf, "marcas_medicamentos", [])]
 
-        max_col_datos = max(cols_sv + cols_temp + cols_resp + [35])
+        max_col_datos = max(cols_sv + cols_temp + cols_resp + cols_meds + [35])
         columnas_totales = max_col_datos + 1
 
         ancho_col_min = mm(3)
@@ -478,13 +493,16 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             label_w = w_eventos + w_escala - mm(1)
 
             painter.drawText(QRect(int(x_eventos), int(y_sevo - mm(1.7)), int(label_w), mm(3.5)),
-                            Qt.AlignmentFlag.AlignRight, "Sevo")
+                            Qt.AlignmentFlag.AlignRight, "Sevo (Vol%)")
+
             painter.drawText(QRect(int(x_eventos), int(y_flujo - mm(1.7)), int(label_w), mm(3.5)),
-                            Qt.AlignmentFlag.AlignRight, "Flujo")
+                            Qt.AlignmentFlag.AlignRight, "Flujo (L/min)")
+
             painter.drawText(QRect(int(x_eventos), int(y_fio2 - mm(1.7)), int(label_w), mm(3.5)),
-                            Qt.AlignmentFlag.AlignRight, "FiO₂")
+                            Qt.AlignmentFlag.AlignRight, "FiO₂ (%)")
+
             painter.drawText(QRect(int(x_eventos), int(y_spo2 - mm(1.7)), int(label_w), mm(3.5)),
-                            Qt.AlignmentFlag.AlignRight, "SpO₂")
+                            Qt.AlignmentFlag.AlignRight, "SpO₂ (%)")
 
             painter.setFont(font_micro)
 
@@ -512,23 +530,70 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                                 Qt.AlignmentFlag.AlignCenter, str(d["spo2"]))
 
             # =========================
-            # FRANJA DE MINUTOS
+            # FRANJA DE MINUTOS / HORAS
             # =========================
             painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
             painter.drawLine(int(x_grid), int(y_min_top), int(x_grid + w_grid), int(y_min_top))
             painter.drawLine(int(x_grid), int(y_min_bottom), int(x_grid + w_grid), int(y_min_bottom))
 
             painter.setFont(font_micro)
-            for i in range(num_columnas):
-                minuto_real = (i + 1) * 5
-                if minuto_real % 15 == 0:
-                    minuto_etiqueta = minuto_real % 60
-                    if minuto_etiqueta == 0:
-                        minuto_etiqueta = 60
 
-                    x_txt = x_grid + (i + 1) * ancho_col
-                    rect = QRect(int(x_txt - mm(2.5)), int(y_min_top + mm(0.8)), mm(5), mm(3))
-                    painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(minuto_etiqueta))
+            hora_base = getattr(graf, "hora_base_rejilla", None)
+
+            if hora_base is None:
+                hora_base = getattr(graf, "hora_inicio", None)
+
+            if hora_base is not None:
+                # Hora inicial al inicio de la cuadrícula
+                painter.setFont(font_small_bold)
+                if pagina_actual == 0:
+                    painter.drawText(
+                        QRect(int(x_grid), int(y_min_top + mm(0.5)), mm(6), mm(3)),
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                        hora_base.strftime("%H")
+                    )
+
+                painter.setFont(font_micro)
+
+                for i in range(1, num_columnas + 1):
+                    minuto_total = (col_inicio + i) * 5
+                    x_txt = x_grid + i * ancho_col
+
+                    if minuto_total % 60 == 0:
+                        hora_abs = hora_base.replace(
+                            hour=(hora_base.hour + minuto_total // 60) % 24
+                        )
+
+                        painter.setFont(font_small_bold)
+                        painter.drawText(
+                            QRect(int(x_txt - mm(2.5)), int(y_min_top + mm(0.5)), mm(5), mm(3)),
+                            Qt.AlignmentFlag.AlignCenter,
+                            hora_abs.strftime("%H")
+                        )
+
+                    elif minuto_total % 15 == 0:
+                        minuto = minuto_total % 60
+
+                        painter.setFont(font_micro)
+                        painter.drawText(
+                            QRect(int(x_txt - mm(2.5)), int(y_min_top + mm(0.8)), mm(5), mm(3)),
+                            Qt.AlignmentFlag.AlignCenter,
+                            str(minuto)
+                        )
+
+            else:
+                # Fallback viejo si no hay evento 1 todavía
+                for i in range(num_columnas):
+                    minuto_real = (i + 1) * 5
+
+                    if minuto_real % 15 == 0:
+                        minuto_etiqueta = minuto_real % 60
+                        if minuto_etiqueta == 0:
+                            minuto_etiqueta = 60
+
+                        x_txt = x_grid + (i + 1) * ancho_col
+                        rect = QRect(int(x_txt - mm(2.5)), int(y_min_top + mm(0.8)), mm(5), mm(3))
+                        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(minuto_etiqueta))
 
             # =========================
             # GRÁFICA SV
@@ -575,6 +640,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 painter.drawText(rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, str(valor))
 
             y_sv_datos_bottom = y_sv_bottom - (alto_fila * 3)   
+            y_resp_top = y_sv_datos_bottom
 
             # Línea separadora arriba del bloque respiración
             y_sep_resp = y_sv_bottom - (alto_fila * 3)
@@ -603,6 +669,8 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                 draw_ta_marker(x_linea, y_tas, valor=d["tas"], up=False)
                 draw_ta_marker(x_linea, y_tad, valor=d["tad"], up=True)
+
+                # FC centrada en la columna, igual que en pantalla
                 draw_fc_point(x_centro, y_fc)
 
             for d in graf.datos_temp:
@@ -613,8 +681,73 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                 col = col_global - col_inicio
                 x_centro = x_grid + col * ancho_col + (ancho_col / 2)
-                y_temp = temperatura_a_y(d["temp"], y_sv_top, y_sv_datos_bottom)
+                temp = float(d.get("temp", 36.5))
+
+                y_temp = temperatura_a_y(
+                    temp,
+                    y_sv_top + mm(28),
+                    y_sv_datos_bottom
+                )
                 draw_temp_triangle(x_centro, y_temp)
+
+            # =========================
+            # LETRAS DE MEDICAMENTOS EN PRIMERA COLUMNA
+            # =========================
+            painter.setFont(font_micro)
+            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+            for i, letra in enumerate(graf.filas_meds):
+                if i >= len(graf.inputs_medicamentos):
+                    continue
+
+                if not graf.inputs_medicamentos[i].text().strip():
+                    continue
+
+                y_letra = y_sv_top + i * alto_fila
+
+                painter.drawText(
+                    QRect(
+                        int(x_grid + mm(0.5)),
+                        int(y_letra),
+                        int(ancho_col - mm(1)),
+                        int(alto_fila)
+                    ),
+                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                    letra
+                )
+
+
+            # =========================
+            # MARCAS DE MEDICAMENTOS EN COLUMNA DE TIEMPO
+            # =========================
+            for marca in getattr(graf, "marcas_medicamentos", []):
+                letra = marca.get("letra", "")
+                col_global = marca.get("col", 0)
+
+                if col_global < col_inicio or col_global >= col_fin:
+                    continue
+
+                if letra not in graf.filas_meds:
+                    continue
+
+                fila = graf.filas_meds.index(letra)
+                col = col_global - col_inicio
+
+                x = x_grid + col * ancho_col
+                y_marca = y_sv_top + fila * alto_fila
+
+                painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                painter.setBrush(QColor(70, 70, 70))
+
+                puntos = QPolygonF([
+                    QPointF(x + ancho_col, y_marca),
+                    QPointF(x + ancho_col, y_marca + alto_fila),
+                    QPointF(x + ancho_col / 2, y_marca + alto_fila),
+                ])
+
+                painter.drawPolygon(puntos)
+
+            painter.setBrush(Qt.BrushStyle.NoBrush)
 
             # =========================
             # RESPIRACIÓN (CAE) como círculos
@@ -639,40 +772,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     continue
 
                 draw_resp_circle(x_centro, y_resp, modo)
-
-            
-
-            # =========================
-            # EVENTOS ABAJO
-            # =========================
-            y_eventos_abajo = y_sv_bottom + mm(3)
-
-            painter.setFont(font_small_bold)
-            painter.drawText(
-                QRect(int(x_eventos), int(y_eventos_abajo - mm(1.8)), int(w_eventos + w_escala), mm(3.5)),
-                Qt.AlignmentFlag.AlignLeft,
-                "TIEMPO"
-            )
-
-            painter.setFont(font_micro)
-            eventos_por_columna = {}
-
-            for ev in graf.eventos_registrados:
-                minutos = int((ev["hora"] - graf.hora_inicio).total_seconds() // 60)
-                col_global = minutos // 5
-
-                if col_global < col_inicio or col_global >= col_fin:
-                    continue
-
-                col = col_global - col_inicio
-                eventos_por_columna.setdefault(col, []).append(str(ev["numero"]))
-
-            for col, nums in eventos_por_columna.items():
-                x_centro = x_grid + col * ancho_col + (ancho_col / 2)
-                texto = ",".join(sorted(nums, key=int))
-                rect = QRect(int(x_centro - mm(3.5)), int(y_eventos_abajo - mm(1.5)), mm(7), mm(3))
-                painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, texto)
-
+                
             # =========================
             # COLUMNA IZQUIERDA: SIMBOLOGÍA + EVENTOS
             # =========================
@@ -762,7 +862,82 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     txt
                 )
 
+            # --- números de eventos debajo de la cuadrícula SV ---
+            painter.setFont(font_small_bold)
+            painter.setPen(QPen(Qt.GlobalColor.black, 1.2))
+
+            from collections import defaultdict
+
+            eventos_por_columna = defaultdict(list)
+
+            for ev in graf.eventos_registrados:
+                numero = str(ev.get("numero", ""))
+                hora = ev.get("hora", None)
+
+                if not numero or hora is None:
+                    continue
+
+                minutos = graf.minutos_desde_inicio(hora)
+                columna_global = minutos // 5
+
+                if columna_global < col_inicio or columna_global >= col_fin:
+                    continue
+
+                columna_local = columna_global - col_inicio
+                eventos_por_columna[columna_local].append(numero)
+
+            y_num_eventos = y_sv_bottom + mm(1)
+
+            for columna_local, numeros in eventos_por_columna.items():
+                texto = ",".join(sorted(numeros, key=int))
+
+                x_centro = x_grid + columna_local * ancho_col + ancho_col / 2
+
+                painter.drawText(
+                    QRect(
+                        int(x_centro - mm(4)),
+                        int(y_num_eventos),
+                        int(mm(8)),
+                        int(mm(4))
+                    ),
+                    Qt.AlignmentFlag.AlignCenter,
+                    texto
+                )
+
             if pagina_actual == 0:
+                # =========================
+                # MARCAS DE MEDICAMENTOS
+                # =========================
+
+                painter.setBrush(QColor(70, 70, 70))
+                painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+                alto_fila_med = (y_sv_bottom - y_sv_top) / 20
+
+                for marca in graf.marcas_medicamentos:
+
+                    letra = marca["letra"]
+                    col = marca["col"]
+
+                    if letra not in graf.filas_meds:
+                        continue
+
+                    fila = graf.filas_meds.index(letra)
+
+                    x = x_grid + (col * ancho_col)
+
+                    y = y_sv_top + (fila * alto_fila_med)
+
+                    puntos = QPolygonF([
+                        QPointF(x + ancho_col, y),
+                        QPointF(x + ancho_col, y + alto_fila_med),
+                        QPointF(x + ancho_col / 2, y + alto_fila_med),
+                    ])
+
+                    painter.drawPolygon(puntos)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
+                
                 # =========================
                 # TABLA DE MEDICAMENTOS
                 # =========================
@@ -846,19 +1021,13 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                 registro = ventana.obtener_registro_completo()
 
-                caso_obstetrico = registro.get("caso_obstetrico", {})
-                sexo_rn = caso_obstetrico.get("sexo_rn", "")
-
                 tecnica = registro.get("tecnica_anestesica", {})
 
                 tipo = tecnica.get("tipo_anestesia", "")
                 sub = tecnica.get("subtecnica", "")
                 detalle = tecnica.get("detalle_regional", {}) or {}
 
-                caso_ob = registro.get("caso_obstetrico", {})
-
-                if caso_ob.get("activo"):
-                    pass
+                caso_ob = registro.get("caso_obstetrico", registro.get("obstetrico", {}))
 
                 def draw_checkbox(x, y, texto, marcado=False):
                     size = mm(3)
@@ -947,45 +1116,45 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                             f"Sitio: {sitio}"
                         )
                     
-                    # =========================
-                    # CASOS OBSTÉTRICOS
-                    # =========================
-                    if caso_ob.get("activo"):
-                        x_obs = x_tipo
-                        y_obs = y_tipo + h_tipo + mm(3)
-                        w_obs = w_tipo
-                        h_obs = mm(32)
+                # =========================
+                # CASOS OBSTÉTRICOS
+                # =========================
+                if caso_ob.get("activo"):
+                    x_obs = x_tipo
+                    y_obs = y_tipo + h_tipo + mm(3)
+                    w_obs = w_tipo
+                    h_obs = mm(32)
 
-                        painter.setPen(QPen(Qt.GlobalColor.black, 1))
-                        painter.drawRect(int(x_obs), int(y_obs), int(w_obs), int(h_obs))
+                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                    painter.drawRect(int(x_obs), int(y_obs), int(w_obs), int(h_obs))
 
-                        painter.setFont(QFont("Arial", 7, QFont.Weight.Bold))
-                        painter.drawText(
-                            QRect(int(x_obs), int(y_obs), int(w_obs), int(mm(5))),
-                            Qt.AlignmentFlag.AlignCenter,
-                            "CASOS OBSTÉTRICOS"
-                        )
+                    painter.setFont(QFont("Arial", 7, QFont.Weight.Bold))
+                    painter.drawText(
+                        QRect(int(x_obs), int(y_obs), int(w_obs), int(mm(5))),
+                        Qt.AlignmentFlag.AlignCenter,
+                        "CASOS OBSTÉTRICOS"
+                    )
 
-                        sexo_rn = caso_ob.get("sexo_rn", "")
-                        peso_rn = caso_ob.get("peso_rn", "")
-                        talla_rn = caso_ob.get("talla_rn", "")
-                        apgar_1 = caso_ob.get("apgar_1", "")
-                        apgar_5 = caso_ob.get("apgar_5", "")
-                        apgar_10 = caso_ob.get("apgar_10", "")
+                    sexo_rn = caso_ob.get("sexo_rn", "")
+                    peso_rn = caso_ob.get("peso_rn", "")
+                    talla_rn = caso_ob.get("talla_rn", "")
+                    apgar_1 = caso_ob.get("apgar_1", "")
+                    apgar_5 = caso_ob.get("apgar_5", "")
+                    apgar_10 = caso_ob.get("apgar_10", "")
 
-                        painter.setFont(QFont("Arial", 6))
+                    painter.setFont(QFont("Arial", 6))
 
-                        y_linea = y_obs + mm(10)
+                    y_linea = y_obs + mm(10)
 
-                        painter.drawText(int(x_obs + mm(3)), int(y_linea), f"RN Sexo: {sexo_rn}")
-                        painter.drawText(int(x_obs + mm(30)), int(y_linea), f"Peso: {peso_rn}")
-                        painter.drawText(int(x_obs + mm(52)), int(y_linea), f"Talla: {talla_rn}")
+                    painter.drawText(int(x_obs + mm(3)), int(y_linea), f"RN Sexo: {sexo_rn}")
+                    painter.drawText(int(x_obs + mm(30)), int(y_linea), f"Peso: {peso_rn}")
+                    painter.drawText(int(x_obs + mm(52)), int(y_linea), f"Talla: {talla_rn}")
 
-                        y_linea += mm(6)
+                    y_linea += mm(6)
 
-                        painter.drawText(int(x_obs + mm(3)), int(y_linea), f"Apgar 1 min: {apgar_1}")
-                        painter.drawText(int(x_obs + mm(30)), int(y_linea), f"5 min: {apgar_5}")
-                        painter.drawText(int(x_obs + mm(50)), int(y_linea), f"10 min: {apgar_10}")    
+                    painter.drawText(int(x_obs + mm(3)), int(y_linea), f"Apgar 1 min: {apgar_1}")
+                    painter.drawText(int(x_obs + mm(30)), int(y_linea), f"5 min: {apgar_5}")
+                    painter.drawText(int(x_obs + mm(50)), int(y_linea), f"10 min: {apgar_10}")    
 
     except Exception as e:
         QMessageBox.critical(ventana, "Error", f"No se pudo generar el PDF.\n\n{e}")

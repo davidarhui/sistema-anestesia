@@ -227,6 +227,81 @@ class CuadriculaSV(QWidget):
             painter.drawLine(x, y_sv_top, x, y_sv_bottom)
 
         # =========================
+        # SIGNOS VITALES SIMULADOS
+        # =========================
+        y_sv_datos_bottom = y_sv_bottom - (alto_fila * 3)
+
+        # Línea separadora de respiración
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.drawLine(x0, int(y_sv_datos_bottom), x1, int(y_sv_datos_bottom))
+
+        # TA y FC
+        for d in self.grafica.datos_sv:
+            col = d.get("col", 0)
+
+            x_linea = x0 + col * ancho_col
+            x_centro = x_linea + ancho_col / 2
+
+            y_tas = self.grafica.valor_a_y(d["tas"], y_sv_top, y_sv_datos_bottom)
+            y_tad = self.grafica.valor_a_y(d["tad"], y_sv_top, y_sv_datos_bottom)
+            y_fc = self.grafica.valor_a_y(d["fc"], y_sv_top, y_sv_datos_bottom)
+
+            self.grafica.draw_ta_marker(painter, x_linea, y_tas, up=False)
+            self.grafica.draw_ta_marker(painter, x_linea, y_tad, up=True)
+            self.grafica.draw_fc_point(painter, x_centro, y_fc)
+
+        # Temperatura
+        for d in self.grafica.datos_temp:
+            col = d.get("col", 0)
+
+            x_centro = x0 + col * ancho_col + ancho_col / 2
+            y_temp = self.grafica.temperatura_a_y(
+                d["temp"],
+                y_sv_top,
+                y_sv_datos_bottom
+            )
+
+            self.grafica.dibujar_triangulo(painter, x_centro, y_temp, tamaño=6)
+
+        # Respiración C/A/E
+        for d in self.grafica.datos_resp:
+            col = d.get("col", 0)
+            modo = d.get("modo", "")
+
+            x_centro = x0 + col * ancho_col + ancho_col / 2
+
+            if modo == "C":
+                y_resp = y_sv_bottom - alto_fila * 0.5
+            elif modo == "A":
+                y_resp = y_sv_bottom - alto_fila * 1.5
+            elif modo == "E":
+                y_resp = y_sv_bottom - alto_fila * 2.5
+            else:
+                continue
+
+            painter.setPen(QPen(Qt.GlobalColor.black, 2))
+
+            if modo == "E":
+                painter.setBrush(QColor("black"))
+            else:
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+
+            painter.drawEllipse(QPointF(x_centro, y_resp), 4, 4)
+
+        # Agentes arriba
+        painter.setFont(QFont("Arial", 8))
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+        for d in self.grafica.datos_sv:
+            col = d.get("col", 0)
+            x_centro = x0 + col * ancho_col + ancho_col / 2
+
+            painter.drawText(int(x_centro - 10), int(y_ag_top + alto_fila_ag * 0.70), f'{d["sevo"]:.1f}')
+            painter.drawText(int(x_centro - 10), int(y_ag_top + alto_fila_ag * 1.70), f'{d["flujo"]:.1f}')
+            painter.drawText(int(x_centro - 10), int(y_ag_top + alto_fila_ag * 2.70), str(d["fio2"]))
+            painter.drawText(int(x_centro - 10), int(y_ag_top + alto_fila_ag * 3.70), str(d["spo2"]))
+
+        # =========================
         # MARCAS DE MEDICAMENTOS
         # =========================
         painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
@@ -602,8 +677,10 @@ class GraficaAnestesia(QWidget):
             "Tramadol": "mg IV",
             "Vecuronio": "mg IV",
         }
-        self.marcas_medicamentos = []
+
         self.botones_medicamentos = []
+        self.marcas_medicamentos = []
+
         self.setMinimumSize(1400, 1120)
         self.cuadricula_sv = CuadriculaSV(self)
         self.scroll_cuadricula = QScrollArea(self)
@@ -884,6 +961,7 @@ class GraficaAnestesia(QWidget):
         self.grupo_tipo_anestesia.addButton(self.rb_anestesia_regional)
         self.grupo_tipo_anestesia.addButton(self.rb_anestesia_combinada)
 
+        self.rb_anestesia_general.setChecked(True)
         self.rb_general_balanceada.setChecked(True)
 
         self.rb_anestesia_general.toggled.connect(self.actualizar_tecnica_anestesica)
@@ -961,11 +1039,19 @@ class GraficaAnestesia(QWidget):
                 }
             """)
 
-        self.input_rn_peso = QLineEdit()
-        self.input_rn_peso.setPlaceholderText("Peso")
+        self.input_rn_peso = LineEditConSufijo()
+        self.input_rn_peso.setPlaceholderText("kg")
+        self.input_rn_peso.setSufijoSugerido("kg")
+        self.input_rn_peso.editingFinished.connect(
+            lambda: self.normalizar_sufijo_lineedit(self.input_rn_peso, "kg")
+        )
 
-        self.input_rn_talla = QLineEdit()
-        self.input_rn_talla.setPlaceholderText("Talla")
+        self.input_rn_talla = LineEditConSufijo()
+        self.input_rn_talla.setPlaceholderText("cm")
+        self.input_rn_talla.setSufijoSugerido("cm")
+        self.input_rn_talla.editingFinished.connect(
+            lambda: self.normalizar_sufijo_lineedit(self.input_rn_talla, "cm")
+        )
 
         for inp in [
             self.input_rn_peso,
@@ -1927,6 +2013,16 @@ class GraficaAnestesia(QWidget):
 
             self.dibujar_triangulo(painter, x, y, tamaño=6)
 
+    def normalizar_sufijo_lineedit(self, lineedit, sufijo):
+        texto = lineedit.text().strip()
+
+        if not texto:
+            return
+
+        if texto.lower().endswith(sufijo.lower()):
+            return
+
+        lineedit.setText(f"{texto} {sufijo}")
 
     def obtener_medicamentos_registrados(self):
         medicamentos = []
@@ -2026,6 +2122,7 @@ class GraficaAnestesia(QWidget):
 
         self.columna_actual += 1
         self.update()
+        self.cuadricula_sv.update()
 
     
     def draw_sv_simulados(self, painter):
@@ -2141,6 +2238,9 @@ class GraficaAnestesia(QWidget):
     def iniciar_simulacion_sv(self):
         if self.columna_actual >= self.max_columnas:
             return
+
+        self.agregar_dato_simulado()  # genera un dato inmediato
+
         self.timer_sv.start()
         self.btn_iniciar_sv.setEnabled(False)
         self.btn_pausar_sv.setEnabled(True)
@@ -2153,17 +2253,20 @@ class GraficaAnestesia(QWidget):
 
     def reiniciar_simulacion_sv(self):
         self.timer_sv.stop()
+
         self.datos_sv = []
         self.datos_temp = []
         self.datos_resp = []
-        self.datos_resp = []
         self.marcas_medicamentos = []
-        self.botones_medicamentos = []
+
         self.columna_actual = 0
+
         self.btn_iniciar_sv.setEnabled(True)
         self.btn_pausar_sv.setEnabled(False)
         self.btn_reiniciar_sv.setEnabled(True)
+
         self.update()
+        self.cuadricula_sv.update()
 
     def posicionar_botones_simulacion(self, x0, y_ag_top):
         y_botones = y_ag_top - 25
@@ -2325,6 +2428,7 @@ class GraficaAnestesia(QWidget):
 class RegistroAnestesia(QWidget):
     def __init__(self):
         super().__init__()
+        self.fecha_creacion_registro = datetime.now()
 
         self.setWindowTitle("Registro de Anestesia IMSS")
         ANCHO_VENTANA = 1400
@@ -2528,6 +2632,10 @@ class RegistroAnestesia(QWidget):
 
     def obtener_registro_completo(self):
         registro = {
+            "metadata": {
+            "fecha_creacion": self.fecha_creacion_registro.strftime("%Y-%m-%d %H:%M:%S"),
+            "fecha_exportacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        },
             "paciente": {
             "nombre": self.nombre.text(),
             "nss": self.nss.text(),
@@ -2623,6 +2731,7 @@ class RegistroAnestesia(QWidget):
             "apgar_1": self.grafica.input_apgar_1.text(),
             "apgar_5": self.grafica.input_apgar_5.text(),
             "apgar_10": self.grafica.input_apgar_10.text(),
+            "estado_rn": self.grafica.input_estado_rn.text(),
         }
 
         return registro
@@ -2784,6 +2893,8 @@ class RegistroAnestesia(QWidget):
             f"Se guardaron:\n\nPDF: {ruta_pdf}\nJSON: {ruta_json}"
         )
 
+    
+        
     def cargar_json(self):
         ruta, _ = QFileDialog.getOpenFileName(
             self,
@@ -2801,6 +2912,14 @@ class RegistroAnestesia(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"No se pudo leer el archivo JSON.\n\n{e}")
             return
+
+        metadata = data.get("metadata", {})
+        fecha_creacion = metadata.get("fecha_creacion", "")
+
+        try:
+            self.fecha_creacion_registro = datetime.strptime(fecha_creacion, "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            self.fecha_creacion_registro = datetime.now()
 
         try:
             # =========================
@@ -2893,6 +3012,30 @@ class RegistroAnestesia(QWidget):
                 self.grafica.rb_anestesia_general.setChecked(True)
 
             # =========================
+            # Caso obstétrico / RN
+            # =========================
+            caso_ob = data.get("caso_obstetrico", {})
+
+            self.grafica.chk_caso_obstetrico.setChecked(
+                bool(caso_ob.get("activo", False))
+            )
+
+            sexo_rn = caso_ob.get("sexo_rn", "")
+
+            self.grafica.chk_rn_masculino.setChecked(sexo_rn == "Masculino")
+            self.grafica.chk_rn_femenino.setChecked(sexo_rn == "Femenino")
+            self.grafica.chk_rn_indeterminado.setChecked(sexo_rn == "Indeterminado")
+
+            self.grafica.input_rn_peso.setText(str(caso_ob.get("peso_rn", "")))
+            self.grafica.input_rn_talla.setText(str(caso_ob.get("talla_rn", "")))
+
+            self.grafica.input_apgar_1.setText(str(caso_ob.get("apgar_1", "")))
+            self.grafica.input_apgar_5.setText(str(caso_ob.get("apgar_5", "")))
+            self.grafica.input_apgar_10.setText(str(caso_ob.get("apgar_10", "")))
+
+            self.grafica.input_estado_rn.setText(str(caso_ob.get("estado_rn", "")))
+
+            # =========================
             # Eventos
             # =========================
             self.grafica.eventos_registrados = []
@@ -2954,13 +3097,32 @@ class RegistroAnestesia(QWidget):
 
         QMessageBox.information(self, "JSON cargado", f"Se cargó correctamente:\n{ruta}")
 
+    def cargar_datos_generales_por_defecto(self):
+        # Datos del paciente
+        self.nombre.setText("Juan Perez García")
+        self.nss.setText("3298823465-7")
+        self.edad.setText("42 años")
+        self.sexo.setCurrentText("Masculino")
+        self.unidad.setText("HGZ #18")
+
+        # Datos quirúrgicos
+        self.dx_pre.setText("Colecistitis aguda")
+        self.cirugia_programada.setText("Colecistectomía laparoscópica")
+        self.dx_post.setText("Úlcera gástrica perforada")
+        self.cirugia_realizada.setText("Laparoscopía diagnóstica/Parche de Graham")
+
+        # Médicos
+        self.anestesiologo.setText("Dr. David Arvizo Huitron")
+        self.cirujano.setText("Dr. Germán Felipe Wong Sánchez-Espino")
+
     def nuevo_registro(self):
+        self.fecha_creacion_registro = datetime.now()
+
         # Paciente
         self.nombre.clear()
         self.nss.clear()
         self.edad.clear()
         self.sexo.setCurrentIndex(0)
-        self.unidad.clear()
 
         # Cirugía
         self.dx_pre.clear()
@@ -2968,22 +3130,12 @@ class RegistroAnestesia(QWidget):
         self.dx_post.clear()
         self.cirugia_realizada.clear()
 
-        # Medicos
-        self.anestesiologo.clear()
-        self.cirujano.clear()
-
-        # Medicamentos
-        for inp in self.grafica.inputs_medicamentos:
-            inp.clear()
-        for inp in self.grafica.inputs_dosis_via:
-            inp.clear()
-
         # Eventos
         self.grafica.eventos_registrados = []
         self.grafica.hora_inicio = datetime.now()
         self.grafica.actualizar_estado_botones()
 
-        # Gráfica
+        # Gráfica / simulación
         self.grafica.datos_sv = []
         self.grafica.datos_temp = []
         self.grafica.datos_resp = []
@@ -2993,9 +3145,9 @@ class RegistroAnestesia(QWidget):
         self.grafica.btn_iniciar_sv.setEnabled(True)
         self.grafica.btn_pausar_sv.setEnabled(False)
 
-        self.grafica.rb_anestesia_general.setChecked(True)
-
         self.grafica.update()
+
+        self.cargar_datos_generales_por_defecto()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
