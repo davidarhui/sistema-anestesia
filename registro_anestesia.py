@@ -954,6 +954,7 @@ class GraficaAnestesia(QWidget):
         layout_tipo.addWidget(self.rb_anestesia_regional)
         layout_tipo.addWidget(self.rb_anestesia_combinada)
         layout_tipo.addWidget(self.stack_tecnica)
+
         layout_tipo.addStretch()
 
         self.grupo_tipo_anestesia = QButtonGroup(self)
@@ -1126,6 +1127,46 @@ class GraficaAnestesia(QWidget):
 
         self.actualizar_tecnica_anestesica()
         self.actualizar_detalle_regional()
+
+    def calcular_balance_hidrico(self):
+        def valor_ml(inp):
+            texto = inp.text().strip().replace(",", ".")
+            if not texto:
+                return 0.0
+            try:
+                return float(texto)
+            except ValueError:
+                return 0.0
+
+        ingresos = (
+            valor_ml(self.input_cristaloides) +
+            valor_ml(self.input_coloides) +
+            valor_ml(self.input_ce) +
+            valor_ml(self.input_pfc) +
+            valor_ml(self.input_plaquetas) +
+            valor_ml(self.input_crioprecipitados) +
+            valor_ml(self.input_otros_ingresos)
+        )
+
+        egresos = (
+            valor_ml(self.input_sangrado) +
+            valor_ml(self.input_diuresis) +
+            valor_ml(self.input_aspirado_gastrico) +
+            valor_ml(self.input_drenajes) +
+            valor_ml(self.input_otros_egresos)
+        )
+
+        balance = ingresos - egresos
+
+        self.input_total_ingresos.setText(f"{ingresos:.0f} mL")
+        self.input_total_egresos.setText(f"{egresos:.0f} mL")
+
+        if balance > 0:
+            self.input_balance_neto.setText(f"+{balance:.0f} mL")
+        elif balance < 0:
+            self.input_balance_neto.setText(f"{balance:.0f} mL")
+        else:
+            self.input_balance_neto.setText("0 mL")    
 
     def obtener_total_columnas_dibujo(self):
         columnas_minimas = 36
@@ -1596,7 +1637,12 @@ class GraficaAnestesia(QWidget):
             # por eso mandamos y_tabla_top - 28
             y_ref_tabla = y_tabla_top - 28
 
-            self.posicionar_tabla_medicamentos(x0, y_ref_tabla)
+            clave_layout = (int(x0), int(y_ref_tabla))
+
+            if getattr(self, "_ultima_posicion_layout", None) != clave_layout:
+                self._ultima_posicion_layout = clave_layout
+                self.posicionar_tabla_medicamentos(x0, y_ref_tabla)
+                
             self.draw_tabla_medicamentos(painter, y_ref_tabla)
 
             self.posicionar_botones_eventos(x0, y_sv_bottom)
@@ -1781,6 +1827,22 @@ class GraficaAnestesia(QWidget):
         self.contenedor_tipo_anestesia.show()
         self.contenedor_tipo_anestesia.raise_()
 
+        self.contenedor_balance_hidrico = QWidget(self)
+        x_balance = x_tipo + w_tipo + 20
+        y_balance = y_tipo
+        w_balance = 360
+        h_balance = 260
+
+        self.contenedor_balance_hidrico.setGeometry(
+            x_balance + 5,
+            y_balance + 5,
+            w_balance - 10,
+            h_balance - 10
+        )
+
+        self.contenedor_balance_hidrico.show()
+        self.contenedor_balance_hidrico.raise_()
+
         # =========================
         # PANEL OBSTÉTRICO
         # =========================
@@ -1791,24 +1853,29 @@ class GraficaAnestesia(QWidget):
         w_obs = 420
         h_obs = 170
 
-        self.chk_caso_obstetrico.setGeometry(
-            12,
-            4,
-            90,
-            20
-        )
-        self.chk_caso_obstetrico.show()
-        self.chk_caso_obstetrico.raise_()
+        if hasattr(self, "contenedor_obstetricos"):
+            self.contenedor_obstetricos.setGeometry(
+                x_obs + 5,
+                y_obs + 5,
+                w_obs - 10,
+                h_obs - 10
+            )
 
-        self.contenedor_obstetricos.setGeometry(
-            x_obs + 5,
-            y_obs + 5,
-            w_obs - 10,
-            h_obs - 10
-        )
+            self.contenedor_obstetricos.show()
+            self.contenedor_obstetricos.raise_()
 
-        self.contenedor_obstetricos.show()
-        self.contenedor_obstetricos.raise_()
+        if hasattr(self, "chk_caso_obstetrico"):
+            if self.chk_caso_obstetrico.parent() is not self.contenedor_obstetricos:
+                self.chk_caso_obstetrico.setParent(self.contenedor_obstetricos)
+
+            self.chk_caso_obstetrico.setGeometry(
+                12,
+                4,
+                140,
+                20
+            )
+            self.chk_caso_obstetrico.show()
+            self.chk_caso_obstetrico.raise_()
 
         # Inputs neuroaxiales manuales, dentro del panel
         x_input = 175
@@ -2121,7 +2188,6 @@ class GraficaAnestesia(QWidget):
             })
 
         self.columna_actual += 1
-        self.update()
         self.cuadricula_sv.update()
 
     
@@ -2832,6 +2898,8 @@ class RegistroAnestesia(QWidget):
             })
 
         self.grafica.columna_actual = len(self.grafica.datos_sv)
+
+        
         self.grafica.update()
     
     def mostrar_registro(self):
@@ -3144,6 +3212,25 @@ class RegistroAnestesia(QWidget):
         self.grafica.timer_sv.stop()
         self.grafica.btn_iniciar_sv.setEnabled(True)
         self.grafica.btn_pausar_sv.setEnabled(False)
+
+                # Técnica anestésica por defecto
+        self.grafica.rb_anestesia_general.setChecked(True)
+        self.grafica.rb_general_balanceada.setChecked(True)
+        self.grafica.actualizar_tecnica_anestesica()
+
+        # Caso obstétrico / RN
+        self.grafica.chk_caso_obstetrico.setChecked(False)
+
+        self.grafica.input_rn_peso.clear()
+        self.grafica.input_rn_talla.clear()
+        self.grafica.input_apgar_1.clear()
+        self.grafica.input_apgar_5.clear()
+        self.grafica.input_apgar_10.clear()
+        self.grafica.input_estado_rn.clear()
+
+        self.grafica.chk_rn_masculino.setChecked(False)
+        self.grafica.chk_rn_femenino.setChecked(False)
+        self.grafica.chk_rn_indeterminado.setChecked(False)
 
         self.grafica.update()
 
