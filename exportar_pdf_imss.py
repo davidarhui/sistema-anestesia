@@ -281,7 +281,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         font_label = QFont("Arial", 9, QFont.Weight.Bold)
         font_text = QFont("Arial", 9)
         font_small = QFont("Arial", 6)
-        font_small_bold = QFont("Arial", 6, QFont.Weight.Bold)
+        font_small_bold = QFont("Arial", 5.5, QFont.Weight.Bold)
         font_micro = QFont("Arial", 5)
 
         datos = ventana.obtener_registro_completo()
@@ -941,7 +941,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 # =========================
                 # TABLA DE MEDICAMENTOS
                 # =========================
-                y_tabla = y_sv_bottom + mm(13)
+                y_tabla = y_sv_bottom + mm(9)
 
                 x_letra = area_x + mm(1)
                 w_letra = mm(8)
@@ -1001,139 +1001,136 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     )
 
                 # =========================
-                # MÉTODO Y TÉCNICA ANESTÉSICA
+                # BLOQUES DERECHOS DINÁMICOS
+                # MÉTODO/TÉCNICA + CASO OBSTÉTRICO + BALANCE HÍDRICO
                 # =========================
-
-                x_tipo = mm(110)
-                y_tipo = y_tabla
-                w_tipo = mm(70)
-                h_tipo = mm(52)
-
-                painter.setPen(QPen(Qt.GlobalColor.black, 1))
-                painter.drawRect(x_tipo, y_tipo, w_tipo, h_tipo)
-
-                painter.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-                painter.drawText(
-                    QRect(int(x_tipo), int(y_tipo), int(w_tipo), int(mm(6))),
-                    Qt.AlignmentFlag.AlignCenter,
-                    "MÉTODO Y TÉCNICA ANESTÉSICA"
-                )
 
                 registro = ventana.obtener_registro_completo()
 
-                tecnica = registro.get("tecnica_anestesica", {})
+                x_bloque = mm(110)
+                y_bloque = y_tabla
+                w_bloque = mm(70)
+                margen_bloque = mm(2)
 
-                tipo = tecnica.get("tipo_anestesia", "")
-                sub = tecnica.get("subtecnica", "")
-                detalle = tecnica.get("detalle_regional", {}) or {}
+                def texto_ml_pdf(valor):
+                    texto = str(valor or "").strip()
+                    if not texto:
+                        return ""
+                    limpio = texto.replace("mL", "").replace("ml", "").replace(",", "").strip()
+                    if not limpio:
+                        return ""
+                    try:
+                        return f"{float(limpio):,.0f}"
+                    except Exception:
+                        return texto.replace(" mL", "").replace("mL", "").strip()
 
-                caso_ob = registro.get("caso_obstetrico", registro.get("obstetrico", {}))
+                def numero_ml_pdf(valor):
+                    texto = str(valor or "").strip()
+                    limpio = texto.replace("mL", "").replace("ml", "").replace(",", "").replace("+", "").strip()
+                    if not limpio:
+                        return 0.0
+                    try:
+                        return float(limpio)
+                    except Exception:
+                        return 0.0
 
-                def draw_checkbox(x, y, texto, marcado=False):
-                    size = mm(3)
-
-                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
-                    painter.setBrush(Qt.BrushStyle.NoBrush)
-                    painter.drawRect(int(x), int(y), int(size), int(size))
-
-                    if marcado:
-                        painter.setFont(QFont("Arial", 7, QFont.Weight.Bold))
-                        painter.drawText(
-                            QRect(int(x), int(y - mm(0.7)), int(size), int(size + mm(1))),
-                            Qt.AlignmentFlag.AlignCenter,
-                            "✓"
-                        )
-
-                    painter.setFont(QFont("Arial", 6))
+                def draw_titulo_bloque(x, y, w, titulo):
+                    painter.setFont(QFont("Arial", 6, QFont.Weight.Bold))
                     painter.drawText(
-                        QRect(int(x + size + mm(1)), int(y - mm(0.7)), int(mm(28)), int(size + mm(1))),
-                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                        texto
+                        QRect(int(x), int(y + mm(0.8)), int(w), int(mm(4.5))),
+                        Qt.AlignmentFlag.AlignCenter,
+                        titulo
                     )
 
+                def alto_texto(texto, w, fuente=None, min_h=None):
+                    if fuente:
+                        painter.setFont(fuente)
+                    fm = painter.fontMetrics()
+                    h = fm.boundingRect(
+                        QRect(0, 0, int(w), int(mm(30))),
+                        Qt.TextFlag.TextWordWrap,
+                        str(texto or "")
+                    ).height()
+                    if min_h is None:
+                        min_h = mm(3.4)
+                    return max(min_h, h + mm(0.3))
 
-                painter.setFont(QFont("Arial", 6, QFont.Weight.Bold))
+                def draw_texto_wrap(x, y, w, texto, fuente=None, bold=False):
+                    if fuente is not None:
+                        painter.setFont(fuente)
+                    elif bold:
+                        painter.setFont(QFont("Arial", 5.5, QFont.Weight.Bold))
+                    else:
+                        painter.setFont(QFont("Arial", 5.5))
+                    h = alto_texto(texto, w)
+                    painter.drawText(
+                        QRect(int(x), int(y), int(w), int(h)),
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
+                        str(texto or "")
+                    )
+                    return y + h
 
-                y_texto = y_tipo + mm(10)
+                def draw_metodo_tecnica(x, y, w):
+                    tecnica = registro.get("tecnica_anestesica", {}) or {}
+                    tipo = tecnica.get("tipo_anestesia", "") or ""
+                    sub = tecnica.get("subtecnica", "") or ""
+                    detalle = tecnica.get("detalle_regional", {}) or {}
 
-                painter.drawText(
-                    int(x_tipo + mm(5)),
-                    int(y_texto),
-                    f"(X) {tipo.upper()}"
-                )
+                    lineas = []
+                    if tipo:
+                        lineas.append((f"(X) {tipo.upper()}", True, mm(5)))
+                    if sub:
+                        lineas.append((f"(X) {sub}", True, mm(6)))
 
-                painter.drawText(
-                    int(x_tipo + mm(9)),
-                    int(y_texto + mm(6)),
-                    f"(X) {sub}"
-                )
-
-                if tipo == "Regional" and detalle:
+                    # Detalle regional: sólo imprime lo que exista.
+                    tipo_det = detalle.get("tipo", "")
                     subtipo = detalle.get("subtipo", "")
                     nivel = detalle.get("nivel", "")
                     tipo_aguja = detalle.get("tipo_aguja", "")
                     anestesico_local = detalle.get("anestesico_local", "")
                     sitio = detalle.get("sitio", "")
 
-                    y_detalle = y_texto + mm(12)
-
+                    if tipo_det:
+                        lineas.append((f"Tipo regional: {tipo_det}", False, mm(8)))
                     if subtipo:
-                        painter.drawText(
-                            int(x_tipo + mm(13)),
-                            int(y_detalle),
-                            f"(X) {subtipo}"
-                        )
-                        y_detalle += mm(5)
-
+                        lineas.append((f"Subtipo: {subtipo}", False, mm(8)))
                     if nivel:
-                        painter.drawText(
-                            int(x_tipo + mm(13)),
-                            int(y_detalle),
-                            f"Nivel: {nivel}"
-                        )
-                        y_detalle += mm(5)
-
+                        lineas.append((f"Nivel: {nivel}", False, mm(8)))
                     if tipo_aguja:
-                        painter.drawText(
-                            int(x_tipo + mm(13)),
-                            int(y_detalle),
-                            f"Aguja: {tipo_aguja}"
-                        )
-                        y_detalle += mm(5)
-
+                        lineas.append((f"Aguja: {tipo_aguja}", False, mm(8)))
                     if anestesico_local:
-                        painter.drawText(
-                            int(x_tipo + mm(13)),
-                            int(y_detalle),
-                            f"Anest. local: {anestesico_local}"
-                        )
-                        y_detalle += mm(5)
-
+                        lineas.append((f"Anestésico local: {anestesico_local}", False, mm(8)))
                     if sitio:
-                        painter.drawText(
-                            int(x_tipo + mm(13)),
-                            int(y_detalle),
-                            f"Sitio: {sitio}"
-                        )
-                    
-                # =========================
-                # CASOS OBSTÉTRICOS
-                # =========================
-                if caso_ob.get("activo"):
-                    x_obs = x_tipo
-                    y_obs = y_tipo + h_tipo + mm(3)
-                    w_obs = w_tipo
-                    h_obs = mm(32)
+                        lineas.append((f"Sitio: {sitio}", False, mm(8)))
+
+                    if not lineas:
+                        lineas.append(("Sin técnica registrada", False, mm(5)))
+
+                    alto_header = mm(6)
+                    alto_lineas = 0
+                    font_normal = QFont("Arial", 6)
+                    font_bold = QFont("Arial", 5.5, QFont.Weight.Bold)
+                    for texto, bold, indent in lineas:
+                        alto_lineas += alto_texto(texto, w - indent - mm(4), font_bold if bold else font_normal)
+
+                    h = max(mm(15), alto_header + alto_lineas + mm(2.5))
 
                     painter.setPen(QPen(Qt.GlobalColor.black, 1))
-                    painter.drawRect(int(x_obs), int(y_obs), int(w_obs), int(h_obs))
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawRect(int(x), int(y), int(w), int(h))
+                    draw_titulo_bloque(x, y, w, "MÉTODO Y TÉCNICA ANESTÉSICA")
 
-                    painter.setFont(QFont("Arial", 7, QFont.Weight.Bold))
-                    painter.drawText(
-                        QRect(int(x_obs), int(y_obs), int(w_obs), int(mm(5))),
-                        Qt.AlignmentFlag.AlignCenter,
-                        "CASOS OBSTÉTRICOS"
-                    )
+                    y_cursor = y + alto_header
+                    for texto, bold, indent in lineas:
+                        fuente = font_bold if bold else font_normal
+                        y_cursor = draw_texto_wrap(x + indent, y_cursor, w - indent - mm(4), texto, fuente=fuente)
+
+                    return y + h
+
+                def draw_caso_obstetrico(x, y, w):
+                    caso_ob = registro.get("caso_obstetrico", registro.get("obstetrico", {})) or {}
+                    if not caso_ob.get("activo"):
+                        return y
 
                     sexo_rn = caso_ob.get("sexo_rn", "")
                     peso_rn = caso_ob.get("peso_rn", "")
@@ -1141,20 +1138,175 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     apgar_1 = caso_ob.get("apgar_1", "")
                     apgar_5 = caso_ob.get("apgar_5", "")
                     apgar_10 = caso_ob.get("apgar_10", "")
+                    estado_rn = caso_ob.get("estado_rn", "")
 
-                    painter.setFont(QFont("Arial", 6))
+                    lineas = [
+                        (f"RN Sexo: {sexo_rn or ''}        Peso: {peso_rn or ''}        Talla: {talla_rn or ''}", False),
+                        (f"Apgar 1 min: {apgar_1 or ''}        5 min: {apgar_5 or ''}        10 min: {apgar_10 or ''}", False),
+                    ]
+                    if estado_rn:
+                        lineas.append((f"Estado al salir: {estado_rn}", False))
 
-                    y_linea = y_obs + mm(10)
+                    alto_header = mm(8)
+                    font_normal = QFont("Arial", 6)
+                    alto_lineas = sum(alto_texto(t, w - mm(6), font_normal) for t, _ in lineas)
+                    h = max(mm(18), alto_header + alto_lineas + mm(2.5))
 
-                    painter.drawText(int(x_obs + mm(3)), int(y_linea), f"RN Sexo: {sexo_rn}")
-                    painter.drawText(int(x_obs + mm(30)), int(y_linea), f"Peso: {peso_rn}")
-                    painter.drawText(int(x_obs + mm(52)), int(y_linea), f"Talla: {talla_rn}")
+                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawRect(int(x), int(y), int(w), int(h))
+                    draw_titulo_bloque(x, y, w, "CASOS OBSTÉTRICOS")
 
-                    y_linea += mm(6)
+                    y_cursor = y + alto_header
+                    for texto, _ in lineas:
+                        y_cursor = draw_texto_wrap(x + mm(3), y_cursor, w - mm(6), texto, fuente=font_normal)
 
-                    painter.drawText(int(x_obs + mm(3)), int(y_linea), f"Apgar 1 min: {apgar_1}")
-                    painter.drawText(int(x_obs + mm(30)), int(y_linea), f"5 min: {apgar_5}")
-                    painter.drawText(int(x_obs + mm(50)), int(y_linea), f"10 min: {apgar_10}")    
+                    return y + h
+
+                def draw_balance_hidrico(x, y, w):
+                    balance_h = registro.get("balance_hidrico", {}) or {}
+                    ingresos_b = balance_h.get("ingresos", {}) or {}
+                    egresos_b = balance_h.get("egresos", {}) or {}
+
+                    filas_ing = [
+                        ("Cristaloides", ingresos_b.get("cristaloides", "")),
+                        ("Coloides", ingresos_b.get("coloides", "")),
+                        ("Conc. Erit.", ingresos_b.get("ce", "")),
+                        ("PFC", ingresos_b.get("pfc", "")),
+                        ("Plaquetas", ingresos_b.get("plaquetas", "")),
+                        ("Crioprecip.", ingresos_b.get("crioprecipitados", "")),
+                        ("Otros", ingresos_b.get("otros", "")),
+                    ]
+                    filas_egr = [
+                        ("Sangrado", egresos_b.get("sangrado", "")),
+                        ("Diuresis", egresos_b.get("diuresis", "")),
+                        ("Aspirado", egresos_b.get("aspirado_gastrico", "")),
+                        ("Drenajes", egresos_b.get("drenajes", "")),
+                        ("Otros", egresos_b.get("otros", "")),
+                    ]
+
+                    alto_header = mm(6)
+                    alto_subheader = mm(4)
+                    alto_fila = mm(3.6)
+                    n_filas = max(len(filas_ing), len(filas_egr))
+                    alto_totales = mm(5.5)
+                    alto_balance = mm(6.5)
+                    h = alto_header + alto_subheader + n_filas * alto_fila + alto_totales + alto_balance + mm(2.5)
+
+                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawRect(int(x), int(y), int(w), int(h))
+                    draw_titulo_bloque(x, y, w, "BALANCE HÍDRICO")
+
+                    x_mid = x + w / 2
+                    painter.drawLine(int(x_mid), int(y + alto_header), int(x_mid), int(y + h - alto_balance - mm(1)))
+
+                    x_ing = x + mm(3)
+                    x_egr = x_mid + mm(3)
+                    x_val_ing = x_mid - mm(4)
+                    x_val_egr = x + w - mm(4)
+                    col_w = w / 2 - mm(6)
+
+                    painter.setFont(QFont("Arial", 5.5, QFont.Weight.Bold))
+                    y_sub = y + alto_header + mm(2.6)
+                    painter.drawText(int(x_ing), int(y_sub), "INGRESOS (mL)")
+                    painter.drawText(int(x_egr), int(y_sub), "EGRESOS (mL)")
+
+                    painter.setFont(QFont("Arial", 5))
+                    y_f = y + alto_header + alto_subheader + mm(2.8)
+                    for i in range(n_filas):
+                        yy = y_f + i * alto_fila
+                        if i < len(filas_ing):
+                            lbl, val = filas_ing[i]
+                            painter.drawText(int(x_ing), int(yy), lbl)
+                            painter.drawText(
+                                QRect(int(x_val_ing - mm(16)), int(yy - mm(3.2)), int(mm(15)), int(mm(4))),
+                                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                                texto_ml_pdf(val)
+                            )
+                        if i < len(filas_egr):
+                            lbl, val = filas_egr[i]
+                            painter.drawText(int(x_egr), int(yy), lbl)
+                            painter.drawText(
+                                QRect(int(x_val_egr - mm(16)), int(yy - mm(3.2)), int(mm(15)), int(mm(4))),
+                                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                                texto_ml_pdf(val)
+                            )
+
+                    y_sep = y + alto_header + alto_subheader + n_filas * alto_fila + mm(0.5)
+                    painter.setPen(QPen(Qt.GlobalColor.black, 0.8))
+                    painter.drawLine(int(x + mm(2)), int(y_sep), int(x + w - mm(2)), int(y_sep))
+                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+                    y_tot = y_sep + mm(3.8)
+                    painter.setFont(QFont("Arial", 5.5, QFont.Weight.Bold))
+                    painter.drawText(int(x_ing), int(y_tot), "Total")
+                    painter.drawText(int(x_egr), int(y_tot), "Total")
+
+                    total_ing = texto_ml_pdf(ingresos_b.get("total", ""))
+                    total_egr = texto_ml_pdf(egresos_b.get("total", ""))
+                    painter.drawText(
+                        QRect(int(x_val_ing - mm(18)), int(y_tot - mm(4)), int(mm(17)), int(mm(5))),
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                        (total_ing + " mL") if total_ing else ""
+                    )
+                    painter.drawText(
+                        QRect(int(x_val_egr - mm(18)), int(y_tot - mm(4)), int(mm(17)), int(mm(5))),
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                        (total_egr + " mL") if total_egr else ""
+                    )
+
+                    y_bn = y + h - alto_balance + mm(0.6)
+                    painter.drawLine(int(x + mm(2)), int(y_bn - mm(1.5)), int(x + w - mm(2)), int(y_bn - mm(1.5)))
+
+                    balance_txt = str(balance_h.get("balance_neto", "") or "0 mL")
+                    balance_num = numero_ml_pdf(balance_txt)
+                    es_positivo = balance_txt.strip().startswith("+") or balance_num > 0
+                    es_negativo = balance_txt.strip().startswith("-") or balance_num < 0
+
+                    painter.setFont(QFont("Arial", 6, QFont.Weight.Bold))
+                    painter.drawText(int(x_ing), int(y_bn + mm(4)), "BALANCE NETO")
+
+                    x_bn_box = x + w - mm(34)
+                    y_bn_box = y_bn - mm(0.5)
+                    w_bn_box = mm(30)
+                    h_bn_box = mm(5.5)
+
+                    if es_positivo:
+                        painter.setBrush(QColor(232, 245, 233))
+                        painter.setPen(QPen(QColor(0, 80, 0), 1.2))
+                    elif es_negativo:
+                        painter.setBrush(QColor(255, 235, 238))
+                        painter.setPen(QPen(QColor(130, 0, 0), 1.2))
+                    else:
+                        painter.setBrush(QColor(238, 238, 238))
+                        painter.setPen(QPen(Qt.GlobalColor.black, 1.2))
+
+                    painter.drawRect(int(x_bn_box), int(y_bn_box), int(w_bn_box), int(h_bn_box))
+
+                    if es_positivo:
+                        painter.setPen(QPen(QColor(0, 80, 0), 1))
+                    elif es_negativo:
+                        painter.setPen(QPen(QColor(130, 0, 0), 1))
+                    else:
+                        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+                    painter.setFont(QFont("Arial", 6.5, QFont.Weight.Bold))
+                    painter.drawText(
+                        QRect(int(x_bn_box), int(y_bn_box), int(w_bn_box), int(h_bn_box)),
+                        Qt.AlignmentFlag.AlignCenter,
+                        balance_txt
+                    )
+
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.setPen(QPen(Qt.GlobalColor.black, 1))
+
+                    return y + h
+
+                # Dibujo en cadena: cada función devuelve el siguiente Y disponible.
+                y_siguiente = draw_metodo_tecnica(x_bloque, y_bloque, w_bloque) + margen_bloque
+                y_siguiente = draw_caso_obstetrico(x_bloque, y_siguiente, w_bloque) + margen_bloque
+                y_siguiente = draw_balance_hidrico(x_bloque, y_siguiente, w_bloque)
 
     except Exception as e:
         QMessageBox.critical(ventana, "Error", f"No se pudo generar el PDF.\n\n{e}")

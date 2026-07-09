@@ -845,24 +845,39 @@ class GraficaAnestesia(QWidget):
 
         self.rb_intratecal = QRadioButton("Intratecal")
         self.rb_peridural = QRadioButton("Peridural")
+        self.rb_mixta = QRadioButton("Mixta")
         
         self.rb_intratecal.setStyleSheet("margin-left: 18px;")
         self.rb_peridural.setStyleSheet("margin-left: 18px;")
+        self.rb_mixta.setStyleSheet("margin-left: 18px;")
 
         self.grupo_neuroaxial = QButtonGroup(self)
         self.grupo_neuroaxial.addButton(self.rb_intratecal)
         self.grupo_neuroaxial.addButton(self.rb_peridural)
+        self.grupo_neuroaxial.addButton(self.rb_mixta)
 
         self.input_nivel_puncion = QLineEdit()
         self.input_nivel_puncion.setPlaceholderText("Nivel punción")
         self.input_tipo_aguja = QLineEdit()
         self.input_tipo_aguja.setPlaceholderText("Tipo de aguja")
 
+        self.input_calibre_aguja = QLineEdit()
+        self.input_calibre_aguja.setPlaceholderText("Calibre aguja")
+
+        self.input_intentos_bloqueo = QLineEdit()
+        self.input_intentos_bloqueo.setPlaceholderText("Intentos")
+
+        self.input_cateter = QLineEdit()
+        self.input_cateter.setPlaceholderText("Catéter / longitud")
+
         self.input_anestesico_local = QLineEdit()
         self.input_anestesico_local.setPlaceholderText("Anestésico local")
 
         self.input_nivel_puncion.setContentsMargins(0, 0, 0, 0)
         self.input_tipo_aguja.setContentsMargins(0, 0, 0, 0)
+        self.input_calibre_aguja.setContentsMargins(0, 0, 0, 0)
+        self.input_intentos_bloqueo.setContentsMargins(0, 0, 0, 0)
+        self.input_cateter.setContentsMargins(0, 0, 0, 0)
         self.input_anestesico_local.setContentsMargins(0, 0, 0, 0)
 
         self.rb_troncular = QRadioButton("Troncular")
@@ -877,11 +892,17 @@ class GraficaAnestesia(QWidget):
 
         self.input_nivel_puncion.setContentsMargins(0, 0, 0, 0)
         self.input_tipo_aguja.setContentsMargins(0, 0, 0, 0)
+        self.input_calibre_aguja.setContentsMargins(0, 0, 0, 0)
+        self.input_intentos_bloqueo.setContentsMargins(0, 0, 0, 0)
+        self.input_cateter.setContentsMargins(0, 0, 0, 0)
         self.input_anestesico_local.setContentsMargins(0, 0, 0, 0)
 
         for inp in [
             self.input_nivel_puncion,
             self.input_tipo_aguja,
+            self.input_calibre_aguja,
+            self.input_intentos_bloqueo,
+            self.input_cateter,
             self.input_anestesico_local,
             self.input_sitio_bloqueo
         ]:
@@ -906,29 +927,9 @@ class GraficaAnestesia(QWidget):
         self.grupo_tecnica_regional.addButton(self.rb_regional_local)
 
         layout_regional.addWidget(self.rb_regional_neuroaxial)
-
-        sub_neuro = QVBoxLayout()
-        sub_neuro.setContentsMargins(24, 4, 0, 16)
-        sub_neuro.setSpacing(10)
-
-        sub_neuro.addWidget(self.rb_intratecal)
-        sub_neuro.addWidget(self.rb_peridural)
-
-        layout_regional.addLayout(sub_neuro)
-
         layout_regional.addWidget(self.rb_regional_periferico)
-
-        sub_periferico = QVBoxLayout()
-        sub_periferico.setContentsMargins(24, 4, 0, 6)
-        sub_periferico.setSpacing(5)
-
-        sub_periferico.addWidget(self.rb_troncular)
-        sub_periferico.addWidget(self.rb_plexo)
-        sub_periferico.addWidget(self.input_sitio_bloqueo)
-
-        layout_regional.addLayout(sub_periferico)
-
         layout_regional.addWidget(self.rb_regional_local)
+        layout_regional.addStretch()
 
         # COMBINADA
         pagina_combinada = QWidget()
@@ -946,14 +947,65 @@ class GraficaAnestesia(QWidget):
         layout_combinada.addWidget(self.rb_combinada_general_regional)
         layout_combinada.addWidget(self.rb_combinada_general_periferico)
 
+        self.rb_combinada_neuroaxial = QRadioButton("Bloqueo neuroaxial")
+        self.rb_combinada_periferico = QRadioButton("Bloqueo periférico")
+        self.rb_combinada_local = QRadioButton("Local")
+
+        self.grupo_regional_combinada = QButtonGroup(self)
+        self.grupo_regional_combinada.addButton(self.rb_combinada_neuroaxial)
+        self.grupo_regional_combinada.addButton(self.rb_combinada_periferico)
+        self.grupo_regional_combinada.addButton(self.rb_combinada_local)
+
+        self.rb_combinada_neuroaxial.setStyleSheet("margin-left: 18px;")
+        self.rb_combinada_periferico.setStyleSheet("margin-left: 18px;")
+        self.rb_combinada_local.setStyleSheet("margin-left: 18px;")
+
+        layout_combinada.addWidget(self.rb_combinada_neuroaxial)
+        layout_combinada.addWidget(self.rb_combinada_periferico)
+        layout_combinada.addWidget(self.rb_combinada_local)
+
         self.stack_tecnica.addWidget(pagina_general)
         self.stack_tecnica.addWidget(pagina_regional)
         self.stack_tecnica.addWidget(pagina_combinada)
+
+        # Panel compartido de detalle regional.
+        # Se usa tanto para anestesia REGIONAL como para COMBINADA, evitando duplicar controles
+        # y manteniendo una sola fuente de datos para JSON/PDF.
+        self.contenedor_detalle_regional = QWidget()
+        layout_detalle_regional = QVBoxLayout(self.contenedor_detalle_regional)
+        layout_detalle_regional.setContentsMargins(44, 2, 0, 0)
+        layout_detalle_regional.setSpacing(5)
+
+        self.contenedor_detalle_neuroaxial = QWidget()
+        layout_detalle_neuro = QVBoxLayout(self.contenedor_detalle_neuroaxial)
+        layout_detalle_neuro.setContentsMargins(0, 0, 0, 4)
+        layout_detalle_neuro.setSpacing(4)
+        layout_detalle_neuro.addWidget(self.rb_intratecal)
+        layout_detalle_neuro.addWidget(self.rb_peridural)
+        layout_detalle_neuro.addWidget(self.rb_mixta)
+        layout_detalle_neuro.addWidget(self.input_nivel_puncion)
+        layout_detalle_neuro.addWidget(self.input_tipo_aguja)
+        layout_detalle_neuro.addWidget(self.input_calibre_aguja)
+        layout_detalle_neuro.addWidget(self.input_intentos_bloqueo)
+        layout_detalle_neuro.addWidget(self.input_cateter)
+        layout_detalle_neuro.addWidget(self.input_anestesico_local)
+
+        self.contenedor_detalle_periferico = QWidget()
+        layout_detalle_perif = QVBoxLayout(self.contenedor_detalle_periferico)
+        layout_detalle_perif.setContentsMargins(0, 0, 0, 4)
+        layout_detalle_perif.setSpacing(4)
+        layout_detalle_perif.addWidget(self.rb_troncular)
+        layout_detalle_perif.addWidget(self.rb_plexo)
+        layout_detalle_perif.addWidget(self.input_sitio_bloqueo)
+
+        layout_detalle_regional.addWidget(self.contenedor_detalle_neuroaxial)
+        layout_detalle_regional.addWidget(self.contenedor_detalle_periferico)
 
         layout_tipo.addWidget(self.rb_anestesia_general)
         layout_tipo.addWidget(self.rb_anestesia_regional)
         layout_tipo.addWidget(self.rb_anestesia_combinada)
         layout_tipo.addWidget(self.stack_tecnica)
+        layout_tipo.addWidget(self.contenedor_detalle_regional)
 
         layout_tipo.addStretch()
 
@@ -971,17 +1023,34 @@ class GraficaAnestesia(QWidget):
         self.rb_regional_neuroaxial.toggled.connect(self.actualizar_detalle_regional)
         self.rb_regional_periferico.toggled.connect(self.actualizar_detalle_regional)
         self.rb_regional_local.toggled.connect(self.actualizar_detalle_regional)
+        self.rb_combinada_neuroaxial.toggled.connect(self.actualizar_detalle_regional)
+        self.rb_combinada_periferico.toggled.connect(self.actualizar_detalle_regional)
+        self.rb_combinada_local.toggled.connect(self.actualizar_detalle_regional)
+        self.rb_combinada_general_regional.toggled.connect(self.actualizar_tecnica_anestesica)
+        self.rb_combinada_general_periferico.toggled.connect(self.actualizar_tecnica_anestesica)
 
         self.rb_intratecal.toggled.connect(self.update)
         self.rb_peridural.toggled.connect(self.update)
+        self.rb_mixta.toggled.connect(self.update)
         self.rb_troncular.toggled.connect(self.update)
         self.rb_plexo.toggled.connect(self.update)
+
+        self.actualizar_tecnica_anestesica()
+
+        # =========================
+        # BALANCE HÍDRICO
+        # =========================
+        self.crear_balance_hidrico()
 
         # =========================
         # CASOS OBSTÉTRICOS
         # =========================
 
         self.contenedor_obstetricos = QWidget(self)
+
+        layout_obs = QVBoxLayout(self.contenedor_obstetricos)
+        layout_obs.setContentsMargins(10, 28, 10, 10)
+        layout_obs.setSpacing(8)
 
         self.chk_caso_obstetrico = QCheckBox("Activar", self.contenedor_obstetricos)
         self.chk_caso_obstetrico.setChecked(False)
@@ -995,14 +1064,12 @@ class GraficaAnestesia(QWidget):
             }
         """)
 
-        layout_obs = QVBoxLayout(self.contenedor_obstetricos)
-        layout_obs.setContentsMargins(10, 28, 10, 10)
-        layout_obs.setSpacing(8)
-
         # Expulsión placenta
-        fila_placenta = QHBoxLayout()
+        self.widget_placenta = QWidget()
+        fila_placenta = QHBoxLayout(self.widget_placenta)
         fila_placenta.setContentsMargins(0, 14, 0, 0)
 
+        self.lbl_placenta = QLabel("Expulsión placenta:")
         self.rb_placenta_espontanea = QRadioButton("Espontánea")
         self.rb_placenta_manual = QRadioButton("Manual")
 
@@ -1010,15 +1077,19 @@ class GraficaAnestesia(QWidget):
         self.grupo_placenta.addButton(self.rb_placenta_espontanea)
         self.grupo_placenta.addButton(self.rb_placenta_manual)
 
-        fila_placenta.addWidget(QLabel("Expulsión placenta:"))
+        fila_placenta.addWidget(self.lbl_placenta)
         fila_placenta.addWidget(self.rb_placenta_espontanea)
         fila_placenta.addWidget(self.rb_placenta_manual)
         fila_placenta.addStretch()
 
-        layout_obs.addLayout(fila_placenta)
+        layout_obs.addWidget(self.widget_placenta)
 
         # RN
-        fila_rn1 = QHBoxLayout()
+        self.widget_rn = QWidget()
+        fila_rn1 = QHBoxLayout(self.widget_rn)
+        fila_rn1.setContentsMargins(0, 0, 0, 0)
+
+        self.lbl_rn = QLabel("RN")
 
         self.chk_rn_masculino = QCheckBox("♂")
         self.chk_rn_femenino = QCheckBox("♀")
@@ -1029,16 +1100,6 @@ class GraficaAnestesia(QWidget):
         self.grupo_sexo_rn.addButton(self.chk_rn_masculino)
         self.grupo_sexo_rn.addButton(self.chk_rn_femenino)
         self.grupo_sexo_rn.addButton(self.chk_rn_indeterminado)
-
-        for chk in [self.chk_rn_masculino, self.chk_rn_femenino]:
-            chk.setStyleSheet("""
-                QCheckBox {
-                    color: black;
-                    background-color: transparent;
-                    font-size: 13px;
-                    font-weight: bold;
-                }
-            """)
 
         self.input_rn_peso = LineEditConSufijo()
         self.input_rn_peso.setPlaceholderText("kg")
@@ -1054,13 +1115,10 @@ class GraficaAnestesia(QWidget):
             lambda: self.normalizar_sufijo_lineedit(self.input_rn_talla, "cm")
         )
 
-        for inp in [
-            self.input_rn_peso,
-            self.input_rn_talla
-        ]:
+        for inp in [self.input_rn_peso, self.input_rn_talla]:
             inp.setFixedWidth(80)
 
-        fila_rn1.addWidget(QLabel("RN"))
+        fila_rn1.addWidget(self.lbl_rn)
         fila_rn1.addWidget(self.chk_rn_masculino)
         fila_rn1.addWidget(self.chk_rn_femenino)
         fila_rn1.addWidget(self.chk_rn_indeterminado)
@@ -1068,43 +1126,49 @@ class GraficaAnestesia(QWidget):
         fila_rn1.addWidget(self.input_rn_talla)
         fila_rn1.addStretch()
 
-        layout_obs.addLayout(fila_rn1)
+        layout_obs.addWidget(self.widget_rn)
 
         # Apgar
-        fila_apgar = QHBoxLayout()
+        self.widget_apgar = QWidget()
+        fila_apgar = QHBoxLayout(self.widget_apgar)
+        fila_apgar.setContentsMargins(0, 0, 0, 0)
 
         self.input_apgar_1 = QLineEdit()
         self.input_apgar_5 = QLineEdit()
         self.input_apgar_10 = QLineEdit()
 
-        for inp in [
-            self.input_apgar_1,
-            self.input_apgar_5,
-            self.input_apgar_10
-        ]:
+        for inp in [self.input_apgar_1, self.input_apgar_5, self.input_apgar_10]:
             inp.setFixedWidth(45)
 
-        fila_apgar.addWidget(QLabel("Apgar"))
-        fila_apgar.addWidget(QLabel("1 min"))
+        self.lbl_apgar = QLabel("Apgar")
+        self.lbl_apgar_1 = QLabel("1 min")
+        self.lbl_apgar_5 = QLabel("5 min")
+        self.lbl_apgar_10 = QLabel("10 min")
+
+        fila_apgar.addWidget(self.lbl_apgar)
+        fila_apgar.addWidget(self.lbl_apgar_1)
         fila_apgar.addWidget(self.input_apgar_1)
-
-        fila_apgar.addWidget(QLabel("5 min"))
+        fila_apgar.addWidget(self.lbl_apgar_5)
         fila_apgar.addWidget(self.input_apgar_5)
-
-        fila_apgar.addWidget(QLabel("10 min"))
+        fila_apgar.addWidget(self.lbl_apgar_10)
         fila_apgar.addWidget(self.input_apgar_10)
-
         fila_apgar.addStretch()
 
-        layout_obs.addLayout(fila_apgar)
+        layout_obs.addWidget(self.widget_apgar)
 
         # Estado al salir
         self.input_estado_rn = QLineEdit()
-        self.input_estado_rn.setPlaceholderText(
-            "Estado general al salir del quirófano"
-        )
+        self.input_estado_rn.setPlaceholderText("Estado general al salir del quirófano")
 
-        layout_obs.addWidget(self.input_estado_rn)
+        self.widget_estado_rn = QWidget()
+        layout_estado_rn = QHBoxLayout(self.widget_estado_rn)
+        layout_estado_rn.setContentsMargins(0, 0, 0, 0)
+        layout_estado_rn.addWidget(self.input_estado_rn)
+
+        layout_obs.addWidget(self.widget_estado_rn)
+
+        self.chk_caso_obstetrico.toggled.connect(self.actualizar_caso_obstetrico)
+        self.actualizar_caso_obstetrico()
 
         self.contenedor_obstetricos.setStyleSheet("""
             QWidget {
@@ -1124,9 +1188,183 @@ class GraficaAnestesia(QWidget):
                 spacing: 4px;
             }
         """)
-
+        self.chk_caso_obstetrico.toggled.connect(self.actualizar_caso_obstetrico)
+        self.actualizar_caso_obstetrico()
         self.actualizar_tecnica_anestesica()
         self.actualizar_detalle_regional()
+
+    def crear_balance_hidrico(self):
+        self.contenedor_balance_hidrico = QWidget(self)
+
+        layout_balance = QVBoxLayout(self.contenedor_balance_hidrico)
+        layout_balance.setContentsMargins(8, 24, 8, 8)
+        layout_balance.setSpacing(4)
+
+        layout_tabla = QGridLayout()
+        layout_tabla.setContentsMargins(0, 0, 0, 0)
+        layout_tabla.setHorizontalSpacing(6)
+        layout_tabla.setVerticalSpacing(3)
+
+        def etiqueta(texto, negrita=False):
+            lbl = QLabel(texto)
+            if negrita:
+                lbl.setStyleSheet("font-weight: bold;")
+            return lbl
+
+        def entrada():
+            inp = QLineEdit()
+            inp.setFixedWidth(58)
+            inp.setAlignment(Qt.AlignmentFlag.AlignRight)
+            inp.setPlaceholderText("mL")
+            inp.textChanged.connect(self.calcular_balance_hidrico)
+            return inp
+
+        layout_tabla.addWidget(etiqueta("INGRESOS", True), 0, 0, 1, 2)
+        layout_tabla.addWidget(etiqueta("EGRESOS", True), 0, 2, 1, 2)
+
+        self.input_cristaloides = entrada()
+        self.input_coloides = entrada()
+        self.input_ce = entrada()
+        self.input_pfc = entrada()
+        self.input_plaquetas = entrada()
+        self.input_crioprecipitados = entrada()
+        self.input_otros_ingresos = entrada()
+
+        self.input_sangrado = entrada()
+        self.input_diuresis = entrada()
+        self.input_aspirado_gastrico = entrada()
+        self.input_drenajes = entrada()
+        self.input_otros_egresos = entrada()
+
+        ingresos = [
+            ("Cristaloides", self.input_cristaloides),
+            ("Coloides", self.input_coloides),
+            ("CE", self.input_ce),
+            ("PFC", self.input_pfc),
+            ("Plaquetas", self.input_plaquetas),
+            ("Crioprecip.", self.input_crioprecipitados),
+            ("Otros", self.input_otros_ingresos),
+        ]
+
+        egresos = [
+            ("Sangrado", self.input_sangrado),
+            ("Diuresis", self.input_diuresis),
+            ("Aspirado", self.input_aspirado_gastrico),
+            ("Drenajes", self.input_drenajes),
+            ("Otros", self.input_otros_egresos),
+        ]
+
+        for fila, (texto, inp) in enumerate(ingresos, start=1):
+            layout_tabla.addWidget(etiqueta(texto), fila, 0)
+            layout_tabla.addWidget(inp, fila, 1)
+
+        for fila, (texto, inp) in enumerate(egresos, start=1):
+            layout_tabla.addWidget(etiqueta(texto), fila, 2)
+            layout_tabla.addWidget(inp, fila, 3)
+
+        self.input_total_ingresos = QLineEdit()
+        self.input_total_egresos = QLineEdit()
+        self.input_balance_neto = QLineEdit()
+
+        for inp in [self.input_total_ingresos, self.input_total_egresos, self.input_balance_neto]:
+            inp.setReadOnly(True)
+            inp.setAlignment(Qt.AlignmentFlag.AlignRight)
+            inp.setFixedWidth(74)
+
+        fila_total = 8
+        layout_tabla.addWidget(etiqueta("Total", True), fila_total, 0)
+        layout_tabla.addWidget(self.input_total_ingresos, fila_total, 1)
+        layout_tabla.addWidget(etiqueta("Total", True), fila_total, 2)
+        layout_tabla.addWidget(self.input_total_egresos, fila_total, 3)
+
+        fila_balance = 9
+        layout_tabla.addWidget(etiqueta("BALANCE NETO", True), fila_balance, 0, 1, 2)
+        layout_tabla.addWidget(self.input_balance_neto, fila_balance, 2, 1, 2)
+
+        layout_balance.addLayout(layout_tabla)
+        layout_balance.addStretch()
+
+        self.contenedor_balance_hidrico.setStyleSheet("""
+            QWidget {
+                background-color: transparent;
+                color: black;
+                font-size: 10px;
+            }
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #999;
+                padding-right: 3px;
+                height: 18px;
+            }
+            QLineEdit[readOnly="true"] {
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }
+        """)
+
+        self.calcular_balance_hidrico()
+
+    def limpiar_balance_hidrico(self):
+        for inp in [
+            self.input_cristaloides,
+            self.input_coloides,
+            self.input_ce,
+            self.input_pfc,
+            self.input_plaquetas,
+            self.input_crioprecipitados,
+            self.input_otros_ingresos,
+            self.input_sangrado,
+            self.input_diuresis,
+            self.input_aspirado_gastrico,
+            self.input_drenajes,
+            self.input_otros_egresos,
+        ]:
+            inp.clear()
+        self.calcular_balance_hidrico()
+
+    def obtener_balance_hidrico(self):
+        self.calcular_balance_hidrico()
+        return {
+            "ingresos": {
+                "cristaloides": self.input_cristaloides.text(),
+                "coloides": self.input_coloides.text(),
+                "ce": self.input_ce.text(),
+                "pfc": self.input_pfc.text(),
+                "plaquetas": self.input_plaquetas.text(),
+                "crioprecipitados": self.input_crioprecipitados.text(),
+                "otros": self.input_otros_ingresos.text(),
+                "total": self.input_total_ingresos.text(),
+            },
+            "egresos": {
+                "sangrado": self.input_sangrado.text(),
+                "diuresis": self.input_diuresis.text(),
+                "aspirado_gastrico": self.input_aspirado_gastrico.text(),
+                "drenajes": self.input_drenajes.text(),
+                "otros": self.input_otros_egresos.text(),
+                "total": self.input_total_egresos.text(),
+            },
+            "balance_neto": self.input_balance_neto.text(),
+        }
+
+    def cargar_balance_hidrico(self, balance):
+        ingresos = balance.get("ingresos", {}) if isinstance(balance, dict) else {}
+        egresos = balance.get("egresos", {}) if isinstance(balance, dict) else {}
+
+        self.input_cristaloides.setText(str(ingresos.get("cristaloides", "")))
+        self.input_coloides.setText(str(ingresos.get("coloides", "")))
+        self.input_ce.setText(str(ingresos.get("ce", "")))
+        self.input_pfc.setText(str(ingresos.get("pfc", "")))
+        self.input_plaquetas.setText(str(ingresos.get("plaquetas", "")))
+        self.input_crioprecipitados.setText(str(ingresos.get("crioprecipitados", "")))
+        self.input_otros_ingresos.setText(str(ingresos.get("otros", "")))
+
+        self.input_sangrado.setText(str(egresos.get("sangrado", "")))
+        self.input_diuresis.setText(str(egresos.get("diuresis", "")))
+        self.input_aspirado_gastrico.setText(str(egresos.get("aspirado_gastrico", "")))
+        self.input_drenajes.setText(str(egresos.get("drenajes", "")))
+        self.input_otros_egresos.setText(str(egresos.get("otros", "")))
+
+        self.calcular_balance_hidrico()
 
     def calcular_balance_hidrico(self):
         def valor_ml(inp):
@@ -1642,7 +1880,7 @@ class GraficaAnestesia(QWidget):
             if getattr(self, "_ultima_posicion_layout", None) != clave_layout:
                 self._ultima_posicion_layout = clave_layout
                 self.posicionar_tabla_medicamentos(x0, y_ref_tabla)
-                
+
             self.draw_tabla_medicamentos(painter, y_ref_tabla)
 
             self.posicionar_botones_eventos(x0, y_sv_bottom)
@@ -1650,7 +1888,20 @@ class GraficaAnestesia(QWidget):
 
             self.draw_eventos_abajo_sv(painter, x0, y_sv_bottom, ancho_col)
 
+    def actualizar_caso_obstetrico(self):
+        activo = self.chk_caso_obstetrico.isChecked()
 
+        for w in [
+            self.widget_placenta,
+            self.widget_rn,
+            self.widget_apgar,
+            self.widget_estado_rn,
+        ]:
+            w.setVisible(activo)
+
+        self.contenedor_obstetricos.update()
+        self.update()
+            
     def aplicar_estilo_boton_evento(self, btn, estado):
         if estado == "activo":
             btn.setStyleSheet("""
@@ -1827,21 +2078,20 @@ class GraficaAnestesia(QWidget):
         self.contenedor_tipo_anestesia.show()
         self.contenedor_tipo_anestesia.raise_()
 
-        self.contenedor_balance_hidrico = QWidget(self)
         x_balance = x_tipo + w_tipo + 20
         y_balance = y_tipo
         w_balance = 360
         h_balance = 260
 
-        self.contenedor_balance_hidrico.setGeometry(
-            x_balance + 5,
-            y_balance + 5,
-            w_balance - 10,
-            h_balance - 10
-        )
-
-        self.contenedor_balance_hidrico.show()
-        self.contenedor_balance_hidrico.raise_()
+        if hasattr(self, "contenedor_balance_hidrico"):
+            self.contenedor_balance_hidrico.setGeometry(
+                x_balance + 5,
+                y_balance + 5,
+                w_balance - 10,
+                h_balance - 10
+            )
+            self.contenedor_balance_hidrico.show()
+            self.contenedor_balance_hidrico.raise_()
 
         # =========================
         # PANEL OBSTÉTRICO
@@ -1877,31 +2127,42 @@ class GraficaAnestesia(QWidget):
             self.chk_caso_obstetrico.show()
             self.chk_caso_obstetrico.raise_()
 
-        # Inputs neuroaxiales manuales, dentro del panel
-        x_input = 175
-        y_input = 88
-        w_input = 155
+        # Inputs regionales manuales, dentro del panel de método/técnica.
+        # Se colocan a la derecha para no solaparse con los RadioButton de
+        # REGIONAL / COMBINADA.  Importante: al moverlos manualmente hay que
+        # volver a controlar su visibilidad en actualizar_detalle_regional().
+        x_input = 245
+        y_input = 84
+        w_input = 160
         h_input = 20
-        espacio = 24
+        espacio = 22
 
-        for inp in [
+        inputs_regionales = [
             self.input_nivel_puncion,
             self.input_tipo_aguja,
-            self.input_anestesico_local
-        ]:
+            self.input_calibre_aguja,
+            self.input_intentos_bloqueo,
+            self.input_cateter,
+            self.input_anestesico_local,
+            self.input_sitio_bloqueo
+        ]
+
+        for inp in inputs_regionales:
             if inp.parent() is not self.contenedor_tipo_anestesia:
                 inp.setParent(self.contenedor_tipo_anestesia)
 
         self.input_nivel_puncion.setGeometry(x_input, y_input, w_input, h_input)
         self.input_tipo_aguja.setGeometry(x_input, y_input + espacio, w_input, h_input)
-        self.input_anestesico_local.setGeometry(x_input, y_input + espacio * 2, w_input, h_input)
+        self.input_calibre_aguja.setGeometry(x_input, y_input + espacio * 2, w_input, h_input)
+        self.input_intentos_bloqueo.setGeometry(x_input, y_input + espacio * 3, w_input, h_input)
+        self.input_cateter.setGeometry(x_input, y_input + espacio * 4, w_input, h_input)
+        self.input_anestesico_local.setGeometry(x_input, y_input + espacio * 5, w_input, h_input)
+        self.input_sitio_bloqueo.setGeometry(x_input, y_input + espacio * 2, w_input, h_input)
 
-        for inp in [
-            self.input_nivel_puncion,
-            self.input_tipo_aguja,
-            self.input_anestesico_local
-        ]:
+        for inp in inputs_regionales:
             inp.raise_()
+
+        self.actualizar_detalle_regional()
 
         for i in range(len(self.filas_meds)):
             y = y_tabla - 14 + alto_header + i * alto_fila
@@ -2431,56 +2692,84 @@ class GraficaAnestesia(QWidget):
                 self.rb_combinada_general_periferico.isChecked()
             ]):
                 self.rb_combinada_general_regional.setChecked(True)
+
+            if self.rb_combinada_general_periferico.isChecked():
+                if not self.rb_combinada_periferico.isChecked():
+                    self.rb_combinada_periferico.setChecked(True)
+            elif not any([
+                self.rb_combinada_neuroaxial.isChecked(),
+                self.rb_combinada_periferico.isChecked(),
+                self.rb_combinada_local.isChecked()
+            ]):
+                self.rb_combinada_neuroaxial.setChecked(True)
             
         self.actualizar_detalle_regional()
 
     def actualizar_detalle_regional(self):
         es_regional = self.rb_anestesia_regional.isChecked()
-        es_neuroaxial = self.rb_regional_neuroaxial.isChecked()
-        es_periferico = self.rb_regional_periferico.isChecked()
-        # Ocultar radios internos porque ahora usamos inputs manuales
-        self.rb_intratecal.setVisible(False)
-        self.rb_peridural.setVisible(False)
-        self.rb_troncular.setVisible(False)
-        self.rb_plexo.setVisible(False)
+        es_combinada = self.rb_anestesia_combinada.isChecked()
 
-        # 🔴 SI NO ES REGIONAL → ocultar todo
-        if not es_regional:
-            for w in [
-                self.rb_intratecal,
-                self.rb_peridural,
+        es_neuroaxial = (
+            es_regional and self.rb_regional_neuroaxial.isChecked()
+        ) or (
+            es_combinada and self.rb_combinada_neuroaxial.isChecked()
+        )
+
+        es_periferico = (
+            es_regional and self.rb_regional_periferico.isChecked()
+        ) or (
+            es_combinada and self.rb_combinada_periferico.isChecked()
+        )
+
+        hay_detalle_regional = es_regional or es_combinada
+        self.contenedor_detalle_regional.setVisible(hay_detalle_regional)
+
+        if not hay_detalle_regional:
+            self.contenedor_detalle_neuroaxial.setVisible(False)
+            self.contenedor_detalle_periferico.setVisible(False)
+            for inp in [
                 self.input_nivel_puncion,
                 self.input_tipo_aguja,
+                self.input_calibre_aguja,
+                self.input_intentos_bloqueo,
+                self.input_cateter,
                 self.input_anestesico_local,
-                self.rb_troncular,
-                self.rb_plexo,
                 self.input_sitio_bloqueo
             ]:
-                w.setVisible(False)
+                inp.setVisible(False)
             return
 
-        # 🟢 NEUROAXIAL
-        for w in [
-            self.rb_intratecal,
-            self.rb_peridural,
+        # Neuroaxial: subtipo, nivel, aguja y anestésico local.
+        self.contenedor_detalle_neuroaxial.setVisible(es_neuroaxial)
+
+        # Periférico: subtipo y sitio / plexo.
+        self.contenedor_detalle_periferico.setVisible(es_periferico)
+
+        # Los campos editables viven reubicados manualmente dentro del panel,
+        # por eso su visibilidad se controla explícitamente aquí.
+        for inp in [
             self.input_nivel_puncion,
             self.input_tipo_aguja,
+            self.input_calibre_aguja,
+            self.input_intentos_bloqueo,
+            self.input_cateter,
             self.input_anestesico_local
         ]:
-            w.setVisible(es_neuroaxial)
+            inp.setVisible(es_neuroaxial)
+            if es_neuroaxial:
+                inp.show()
+                inp.raise_()
 
-        # 🔵 PERIFÉRICO
-        for w in [
-            self.rb_troncular,
-            self.rb_plexo,
-            self.input_sitio_bloqueo
-        ]:
-            w.setVisible(es_periferico)
+        self.input_sitio_bloqueo.setVisible(es_periferico)
+        if es_periferico:
+            self.input_sitio_bloqueo.show()
+            self.input_sitio_bloqueo.raise_()
 
-        # Defaults automáticos (UX clínico)
+        # Defaults automáticos para que el PDF tenga subtipo si el usuario no elige uno.
         if es_neuroaxial and not any([
             self.rb_intratecal.isChecked(),
-            self.rb_peridural.isChecked()
+            self.rb_peridural.isChecked(),
+            self.rb_mixta.isChecked()
         ]):
             self.rb_intratecal.setChecked(True)
 
@@ -2756,19 +3045,26 @@ class RegistroAnestesia(QWidget):
 
         detalle_regional = {}
 
-        if self.grafica.rb_regional_neuroaxial.isChecked():
+        if (self.grafica.rb_regional_neuroaxial.isChecked() or
+            self.grafica.rb_combinada_neuroaxial.isChecked()):
             detalle_regional["tipo"] = "Neuroaxial"
 
             if self.grafica.rb_intratecal.isChecked():
                 detalle_regional["subtipo"] = "Intratecal"
             elif self.grafica.rb_peridural.isChecked():
                 detalle_regional["subtipo"] = "Peridural"
+            elif self.grafica.rb_mixta.isChecked():
+                detalle_regional["subtipo"] = "Mixta"
 
             detalle_regional["nivel"] = self.grafica.input_nivel_puncion.text()
             detalle_regional["tipo_aguja"] = self.grafica.input_tipo_aguja.text()
+            detalle_regional["calibre_aguja"] = self.grafica.input_calibre_aguja.text()
+            detalle_regional["intentos"] = self.grafica.input_intentos_bloqueo.text()
+            detalle_regional["cateter"] = self.grafica.input_cateter.text()
             detalle_regional["anestesico_local"] = self.grafica.input_anestesico_local.text()
 
-        elif self.grafica.rb_regional_periferico.isChecked():
+        elif (self.grafica.rb_regional_periferico.isChecked() or
+              self.grafica.rb_combinada_periferico.isChecked()):
             detalle_regional["tipo"] = "Periférico"
 
             if self.grafica.rb_troncular.isChecked():
@@ -2799,6 +3095,8 @@ class RegistroAnestesia(QWidget):
             "apgar_10": self.grafica.input_apgar_10.text(),
             "estado_rn": self.grafica.input_estado_rn.text(),
         }
+
+        registro["balance_hidrico"] = self.grafica.obtener_balance_hidrico()
 
         return registro
 
@@ -3046,7 +3344,10 @@ class RegistroAnestesia(QWidget):
                 self.grafica.rb_regional_periferico,
                 self.grafica.rb_regional_local,
                 self.grafica.rb_combinada_general_regional,
-                self.grafica.rb_combinada_general_periferico
+                self.grafica.rb_combinada_general_periferico,
+                self.grafica.rb_combinada_neuroaxial,
+                self.grafica.rb_combinada_periferico,
+                self.grafica.rb_combinada_local
             ]:
                 rb.setChecked(False)
 
@@ -3079,6 +3380,32 @@ class RegistroAnestesia(QWidget):
             else:
                 self.grafica.rb_anestesia_general.setChecked(True)
 
+            detalle = tecnica.get("detalle_regional", {})
+            tipo_detalle = detalle.get("tipo", "")
+            if tipo == "Combinada":
+                if tipo_detalle == "Neuroaxial":
+                    self.grafica.rb_combinada_neuroaxial.setChecked(True)
+                elif tipo_detalle == "Periférico":
+                    self.grafica.rb_combinada_periferico.setChecked(True)
+                elif tipo_detalle == "Local":
+                    self.grafica.rb_combinada_local.setChecked(True)
+            if detalle.get("subtipo") == "Intratecal":
+                self.grafica.rb_intratecal.setChecked(True)
+            elif detalle.get("subtipo") == "Peridural":
+                self.grafica.rb_peridural.setChecked(True)
+            elif detalle.get("subtipo") == "Troncular":
+                self.grafica.rb_troncular.setChecked(True)
+            elif detalle.get("subtipo") == "Plexo":
+                self.grafica.rb_plexo.setChecked(True)
+            self.grafica.input_nivel_puncion.setText(str(detalle.get("nivel", "")))
+            self.grafica.input_tipo_aguja.setText(str(detalle.get("tipo_aguja", "")))
+            self.grafica.input_calibre_aguja.setText(str(detalle.get("calibre_aguja", "")))
+            self.grafica.input_intentos_bloqueo.setText(str(detalle.get("intentos", "")))
+            self.grafica.input_cateter.setText(str(detalle.get("cateter", "")))
+            self.grafica.input_anestesico_local.setText(str(detalle.get("anestesico_local", "")))
+            self.grafica.input_sitio_bloqueo.setText(str(detalle.get("sitio", "")))
+            self.grafica.actualizar_tecnica_anestesica()
+
             # =========================
             # Caso obstétrico / RN
             # =========================
@@ -3102,6 +3429,11 @@ class RegistroAnestesia(QWidget):
             self.grafica.input_apgar_10.setText(str(caso_ob.get("apgar_10", "")))
 
             self.grafica.input_estado_rn.setText(str(caso_ob.get("estado_rn", "")))
+
+            # =========================
+            # Balance hídrico
+            # =========================
+            self.grafica.cargar_balance_hidrico(data.get("balance_hidrico", {}))
 
             # =========================
             # Eventos
@@ -3231,6 +3563,9 @@ class RegistroAnestesia(QWidget):
         self.grafica.chk_rn_masculino.setChecked(False)
         self.grafica.chk_rn_femenino.setChecked(False)
         self.grafica.chk_rn_indeterminado.setChecked(False)
+
+        # Balance hídrico
+        self.grafica.limpiar_balance_hidrico()
 
         self.grafica.update()
 
