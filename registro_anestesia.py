@@ -1048,11 +1048,11 @@ class GraficaAnestesia(QWidget):
 
         self.contenedor_obstetricos = QWidget(self)
 
-        layout_obs = QVBoxLayout(self.contenedor_obstetricos)
-        layout_obs.setContentsMargins(10, 28, 10, 10)
-        layout_obs.setSpacing(8)
+        # El bloque obstétrico se maneja por coordenadas directas.
+        # No debe tener QVBoxLayout en el contenedor principal, porque Qt
+        # vuelve a colapsar/ocultar las filas al activar/desactivar el checkbox.
 
-        self.chk_caso_obstetrico = QCheckBox("Activar", self.contenedor_obstetricos)
+        self.chk_caso_obstetrico = QCheckBox("Caso obstétrico / RN", self.contenedor_obstetricos)
         self.chk_caso_obstetrico.setChecked(False)
         self.chk_caso_obstetrico.setStyleSheet("""
             QCheckBox {
@@ -1065,7 +1065,7 @@ class GraficaAnestesia(QWidget):
         """)
 
         # Expulsión placenta
-        self.widget_placenta = QWidget()
+        self.widget_placenta = QWidget(self.contenedor_obstetricos)
         fila_placenta = QHBoxLayout(self.widget_placenta)
         fila_placenta.setContentsMargins(0, 14, 0, 0)
 
@@ -1082,10 +1082,8 @@ class GraficaAnestesia(QWidget):
         fila_placenta.addWidget(self.rb_placenta_manual)
         fila_placenta.addStretch()
 
-        layout_obs.addWidget(self.widget_placenta)
-
         # RN
-        self.widget_rn = QWidget()
+        self.widget_rn = QWidget(self.contenedor_obstetricos)
         fila_rn1 = QHBoxLayout(self.widget_rn)
         fila_rn1.setContentsMargins(0, 0, 0, 0)
 
@@ -1126,10 +1124,8 @@ class GraficaAnestesia(QWidget):
         fila_rn1.addWidget(self.input_rn_talla)
         fila_rn1.addStretch()
 
-        layout_obs.addWidget(self.widget_rn)
-
         # Apgar
-        self.widget_apgar = QWidget()
+        self.widget_apgar = QWidget(self.contenedor_obstetricos)
         fila_apgar = QHBoxLayout(self.widget_apgar)
         fila_apgar.setContentsMargins(0, 0, 0, 0)
 
@@ -1154,18 +1150,14 @@ class GraficaAnestesia(QWidget):
         fila_apgar.addWidget(self.input_apgar_10)
         fila_apgar.addStretch()
 
-        layout_obs.addWidget(self.widget_apgar)
-
         # Estado al salir
         self.input_estado_rn = QLineEdit()
         self.input_estado_rn.setPlaceholderText("Estado general al salir del quirófano")
 
-        self.widget_estado_rn = QWidget()
+        self.widget_estado_rn = QWidget(self.contenedor_obstetricos)
         layout_estado_rn = QHBoxLayout(self.widget_estado_rn)
         layout_estado_rn.setContentsMargins(0, 0, 0, 0)
         layout_estado_rn.addWidget(self.input_estado_rn)
-
-        layout_obs.addWidget(self.widget_estado_rn)
 
         self.chk_caso_obstetrico.toggled.connect(self.actualizar_caso_obstetrico)
         self.actualizar_caso_obstetrico()
@@ -1188,8 +1180,6 @@ class GraficaAnestesia(QWidget):
                 spacing: 4px;
             }
         """)
-        self.chk_caso_obstetrico.toggled.connect(self.actualizar_caso_obstetrico)
-        self.actualizar_caso_obstetrico()
         self.actualizar_tecnica_anestesica()
         self.actualizar_detalle_regional()
 
@@ -1888,18 +1878,79 @@ class GraficaAnestesia(QWidget):
 
             self.draw_eventos_abajo_sv(painter, x0, y_sv_bottom, ancho_col)
 
-    def actualizar_caso_obstetrico(self):
+    def _acomodar_widgets_obstetricos(self):
+        """Muestra/oculta y reposiciona el contenido del bloque obstétrico.
+
+        Importante: estos widgets se colapsan cuando el caso obstétrico está
+        apagado. Al volver a activarlo, algunos layouts de Qt conservaban el
+        estado oculto; por eso aquí se fuerza visibilidad también en los hijos
+        internos (labels, radio buttons, line edits, etc.).
+        """
+        if not hasattr(self, "chk_caso_obstetrico"):
+            return
+
         activo = self.chk_caso_obstetrico.isChecked()
 
-        for w in [
-            self.widget_placenta,
-            self.widget_rn,
-            self.widget_apgar,
-            self.widget_estado_rn,
-        ]:
-            w.setVisible(activo)
+        widgets_obstetricos = [
+            (self.widget_placenta, 12, 30, 390, 30),
+            (self.widget_rn, 12, 64, 390, 30),
+            (self.widget_apgar, 12, 98, 390, 30),
+            (self.widget_estado_rn, 12, 132, 390, 26),
+        ]
 
-        self.contenedor_obstetricos.update()
+        for widget, gx, gy, gw, gh in widgets_obstetricos:
+            if widget.parent() is not self.contenedor_obstetricos:
+                widget.setParent(self.contenedor_obstetricos)
+
+            widget.setGeometry(gx, gy, gw, gh)
+            widget.setVisible(activo)
+            widget.setEnabled(activo)
+
+            # Fuerza la visibilidad de los controles contenidos dentro de cada
+            # fila. Esto corrige el caso en que la fila aparece, pero sus
+            # QLabel/QRadioButton/QLineEdit internos quedan ocultos.
+            for child in widget.findChildren(QWidget):
+                child.setVisible(activo)
+                child.setEnabled(activo)
+
+            if widget.layout() is not None:
+                widget.layout().invalidate()
+                widget.layout().activate()
+
+            if activo:
+                widget.show()
+                widget.raise_()
+                for child in widget.findChildren(QWidget):
+                    child.show()
+                    child.raise_()
+
+        if hasattr(self, "contenedor_obstetricos"):
+            self.contenedor_obstetricos.updateGeometry()
+            self.contenedor_obstetricos.update()
+
+    def actualizar_caso_obstetrico(self):
+        if hasattr(self, "contenedor_obstetricos"):
+            g = self.contenedor_obstetricos.geometry()
+
+            if self.chk_caso_obstetrico.isChecked():
+                self.contenedor_obstetricos.setGeometry(
+                    g.x(),
+                    g.y(),
+                    g.width(),
+                    160
+                )
+            else:
+                self.contenedor_obstetricos.setGeometry(
+                    g.x(),
+                    g.y(),
+                    g.width(),
+                    28
+                )
+
+            self.contenedor_obstetricos.show()
+            self.contenedor_obstetricos.raise_()
+
+        self._acomodar_widgets_obstetricos()
         self.update()
             
     def aplicar_estilo_boton_evento(self, btn, estado):
@@ -2096,12 +2147,13 @@ class GraficaAnestesia(QWidget):
         # =========================
         # PANEL OBSTÉTRICO
         # =========================
+        # El panel obstétrico queda colapsado cuando no está activado para no
+        # reservar ni dibujar un recuadro grande en registros no obstétricos.
 
         x_obs = x_tipo
-        y_obs = y_tipo + h_tipo + 22
-
+        y_obs = y_tipo + h_tipo + 8
         w_obs = 420
-        h_obs = 170
+        h_obs = 170 if self.chk_caso_obstetrico.isChecked() else 34
 
         if hasattr(self, "contenedor_obstetricos"):
             self.contenedor_obstetricos.setGeometry(
@@ -2120,12 +2172,14 @@ class GraficaAnestesia(QWidget):
 
             self.chk_caso_obstetrico.setGeometry(
                 12,
-                4,
-                140,
+                2,
+                180,
                 20
             )
             self.chk_caso_obstetrico.show()
             self.chk_caso_obstetrico.raise_()
+
+        self._acomodar_widgets_obstetricos()
 
         # Inputs regionales manuales, dentro del panel de método/técnica.
         # Se colocan a la derecha para no solaparse con los RadioButton de
@@ -2257,23 +2311,26 @@ class GraficaAnestesia(QWidget):
         # =========================
         # CASOS OBSTÉTRICOS
         # =========================
+        # Sólo se dibuja el recuadro obstétrico cuando el caso está activo.
+        # Cuando no está activo, queda únicamente el checkbox vivo, sin marco
+        # ni espacio visual desperdiciado.
 
-        x_obs = x_tipo
-        y_obs = y_tipo + h_tipo + 24
+        if self.chk_caso_obstetrico.isChecked():
+            x_obs = x_tipo
+            y_obs = y_tipo + h_tipo + 8
 
-        w_obs = 420
-        h_obs = 170
+            w_obs = 420
+            h_obs = 170
 
-        # borde completo del recuadro obstétrico
-        painter.setPen(QPen(Qt.GlobalColor.black, 1))
-        painter.drawRect(x_obs, y_obs, w_obs, h_obs)
+            painter.setPen(QPen(Qt.GlobalColor.black, 1))
+            painter.drawRect(x_obs, y_obs, w_obs, h_obs)
 
-        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
-        painter.drawText(
-            QRect(x_obs, y_obs + 4, w_obs, alto_header),
-            Qt.AlignmentFlag.AlignCenter,
-            "CASOS OBSTÉTRICOS"
-        )
+            painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+            painter.drawText(
+                QRect(x_obs, y_obs + 4, w_obs, alto_header),
+                Qt.AlignmentFlag.AlignCenter,
+                "CASOS OBSTÉTRICOS"
+            )
 
     def registrar_marca_medicamento(self, letra):
         if not any(e["numero"] == "1" for e in self.eventos_registrados):
