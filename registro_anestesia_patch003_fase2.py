@@ -6,10 +6,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QFont, QPalette
 from PyQt6.QtCore import (
-    Qt, QPointF, QRect, QTimer, QObject, QProcess, pyqtSignal
+    Qt, QPointF, QRect, QTimer
 )
 from datetime import datetime
-from pathlib import Path
 from PyQt6.QtWidgets import QMessageBox
 from PyQt6.QtWidgets import QScrollArea
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
@@ -21,171 +20,8 @@ from exportar_pdf_imss import exportar_a_pdf_imss
 import json
 
 
-class IntelliVueProcessBridge(QObject):
-    """Consume JSON Lines del USS Anestesia SDK mediante QProcess."""
 
-    muestra_recibida = pyqtSignal(dict)
-    estado_cambiado = pyqtSignal(str)
-    error_recibido = pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        sdk_dir = Path.home() / "Developer" / "uss_anestesia_sdk"
-
-        self.python_path = sdk_dir / ".venv" / "bin" / "python3"
-        self.script_path = (
-            sdk_dir / "examples" / "intellivue_live_vitals.py"
-        )
-
-        self.process = QProcess(self)
-        self.process.setProcessChannelMode(
-            QProcess.ProcessChannelMode.SeparateChannels
-        )
-
-        self.process.started.connect(self._on_started)
-        self.process.finished.connect(self._on_finished)
-        self.process.errorOccurred.connect(self._on_process_error)
-        self.process.readyReadStandardOutput.connect(
-            self._read_standard_output
-        )
-        self.process.readyReadStandardError.connect(
-            self._read_standard_error
-        )
-
-        self._stdout_buffer = ""
-        self._deteniendo = False
-
-    @property
-    def activo(self):
-        return (
-            self.process.state()
-            != QProcess.ProcessState.NotRunning
-        )
-
-    def iniciar(
-        self,
-        monitor_ip="192.168.50.2",
-        local_ip="192.168.50.1",
-        timeout=15,
-    ):
-        if self.activo:
-            raise RuntimeError(
-                "El lector IntelliVue ya está ejecutándose"
-            )
-
-        if not self.python_path.exists():
-            raise FileNotFoundError(
-                f"No existe el Python del SDK: {self.python_path}"
-            )
-
-        if not self.script_path.exists():
-            raise FileNotFoundError(
-                f"No existe el lector IntelliVue: {self.script_path}"
-            )
-        self._deteniendo = False
-        self._stdout_buffer = ""
-
-        argumentos = [
-            str(self.script_path),
-            "--monitor-ip", monitor_ip,
-            "--local-ip", local_ip,
-            "--timeout", str(timeout),
-
-            # Duración amplia; QProcess se detiene al desconectar.
-            "--duration", "21600",
-            "--json",
-        ]
-
-        self.estado_cambiado.emit("Conectando con IntelliVue…")
-
-        self.process.setWorkingDirectory(
-            str(self.script_path.parent.parent)
-        )
-        self.process.start(
-            str(self.python_path),
-            argumentos,
-        )
-
-    def detener(self):
-        if not self.activo:
-            self.estado_cambiado.emit("Philips IntelliVue desconectado")
-            return
-
-        self._deteniendo = True
-        self.estado_cambiado.emit("Desconectando Philips IntelliVue…")
-
-        self.process.terminate()
-
-        if not self.process.waitForFinished(1500):
-            self.process.kill()
-            self.process.waitForFinished(1000)
-
-    def _on_started(self):
-        self.estado_cambiado.emit(
-            "IntelliVue conectado; esperando datos clínicos…"
-        )
-
-    def _on_finished(self, exit_code, exit_status):
-        self._stdout_buffer = ""
-        self._deteniendo = False
-
-        if exit_code == 0:
-            self.estado_cambiado.emit("IntelliVue desconectado")
-        else:
-            self.estado_cambiado.emit(
-                f"Lector IntelliVue finalizado (código {exit_code})"
-            )
-
-    def _on_process_error(self, process_error):
-        if self._deteniendo:
-            return
-
-        self.error_recibido.emit(
-            f"Error de QProcess: {process_error.name}"
-        )
-
-    def _read_standard_output(self):
-        chunk = bytes(
-            self.process.readAllStandardOutput()
-        ).decode("utf-8", errors="replace")
-
-        self._stdout_buffer += chunk
-
-        while "\n" in self._stdout_buffer:
-            line, self._stdout_buffer = (
-                self._stdout_buffer.split("\n", 1)
-            )
-
-            line = line.strip()
-
-            if not line:
-                continue
-
-            try:
-                muestra = json.loads(line)
-            except json.JSONDecodeError as exc:
-                self.error_recibido.emit(
-                    "Línea JSON inválida recibida del SDK: "
-                    f"{exc}: {line[:160]}"
-                )
-                continue
-
-            if not isinstance(muestra, dict):
-                self.error_recibido.emit(
-                    "El SDK entregó JSON que no es un objeto"
-                )
-                continue
-
-            self.muestra_recibida.emit(muestra)
-
-    def _read_standard_error(self):
-        message = bytes(
-            self.process.readAllStandardError()
-        ).decode("utf-8", errors="replace").strip()
-
-        if message:
-            self.error_recibido.emit(message)
+from intellivue_connection_fase2 import IntelliVueConnection
 
 class LineEditConSufijo(QLineEdit):
     def __init__(self, parent=None):
@@ -3154,7 +2990,7 @@ class RegistroAnestesia(QWidget):
 
         self.ultima_pni_registrada = None
 
-        self.monitor_bridge = IntelliVueProcessBridge(self)
+        self.monitor_bridge = IntelliVueConnection(self)
         self.monitor_bridge.muestra_recibida.connect(
             self.recibir_muestra_monitor
         )

@@ -1,0 +1,3 @@
+mensaje = "después"
+
+print(mensaje)

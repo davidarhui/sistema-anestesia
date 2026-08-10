@@ -54,7 +54,6 @@ class IntelliVueProcessBridge(QObject):
         )
 
         self._stdout_buffer = ""
-        self._deteniendo = False
 
     @property
     def activo(self):
@@ -83,7 +82,7 @@ class IntelliVueProcessBridge(QObject):
             raise FileNotFoundError(
                 f"No existe el lector IntelliVue: {self.script_path}"
             )
-        self._deteniendo = False
+
         self._stdout_buffer = ""
 
         argumentos = [
@@ -93,11 +92,11 @@ class IntelliVueProcessBridge(QObject):
             "--timeout", str(timeout),
 
             # Duración amplia; QProcess se detiene al desconectar.
-            "--duration", "21600",
+            "--duration", "10",
             "--json",
         ]
 
-        self.estado_cambiado.emit("Conectando con IntelliVue…")
+        self.estado_cambiado.emit("Conectando con MX500…")
 
         self.process.setWorkingDirectory(
             str(self.script_path.parent.parent)
@@ -109,12 +108,10 @@ class IntelliVueProcessBridge(QObject):
 
     def detener(self):
         if not self.activo:
-            self.estado_cambiado.emit("Philips IntelliVue desconectado")
+            self.estado_cambiado.emit("MX500 desconectado")
             return
 
-        self._deteniendo = True
-        self.estado_cambiado.emit("Desconectando Philips IntelliVue…")
-
+        self.estado_cambiado.emit("Desconectando MX500…")
         self.process.terminate()
 
         if not self.process.waitForFinished(1500):
@@ -123,24 +120,20 @@ class IntelliVueProcessBridge(QObject):
 
     def _on_started(self):
         self.estado_cambiado.emit(
-            "IntelliVue conectado; esperando datos clínicos…"
+            "MX500 conectado; esperando datos clínicos…"
         )
 
     def _on_finished(self, exit_code, exit_status):
         self._stdout_buffer = ""
-        self._deteniendo = False
 
         if exit_code == 0:
-            self.estado_cambiado.emit("IntelliVue desconectado")
+            self.estado_cambiado.emit("MX500 desconectado")
         else:
             self.estado_cambiado.emit(
-                f"Lector IntelliVue finalizado (código {exit_code})"
+                f"Lector MX500 finalizado (código {exit_code})"
             )
 
     def _on_process_error(self, process_error):
-        if self._deteniendo:
-            return
-
         self.error_recibido.emit(
             f"Error de QProcess: {process_error.name}"
         )
@@ -2077,10 +2070,6 @@ class GraficaAnestesia(QWidget):
             y_sv_top = y_scroll_top + 96
             y_sv_bottom = y_sv_top + 380
 
-            num_filas_sv = 20
-            alto_fila_sv = 380 / num_filas_sv
-            y_sv_datos_bottom = y_sv_bottom - (alto_fila_sv * 3)
-
             painter.drawText(x0 - 105, y_sv_top + 240, "EVENTOS")
             y_tiempo = y_sv_bottom + 34
 
@@ -2089,16 +2078,8 @@ class GraficaAnestesia(QWidget):
 
             painter.setFont(QFont("Arial", 8))
             for valor in [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]:
-                y_val = self.valor_a_y(
-                    valor,
-                    y_sv_top,
-                    y_sv_datos_bottom,
-                )
-                painter.drawText(
-                    x0 - 28,
-                    int(y_val + 4),
-                    str(valor),
-                )
+                y_val = self.valor_a_y(valor, y_sv_top, y_sv_bottom)
+                painter.drawText(x0 - 28, int(y_val + 4), str(valor))
 
             # =========================
             # TABLA DE MEDICAMENTOS Y TÉCNICA
@@ -3152,8 +3133,6 @@ class RegistroAnestesia(QWidget):
         self.muestras_monitor = []
         self.ultima_muestra_monitor = None
 
-        self.ultima_pni_registrada = None
-
         self.monitor_bridge = IntelliVueProcessBridge(self)
         self.monitor_bridge.muestra_recibida.connect(
             self.recibir_muestra_monitor
@@ -3339,20 +3318,20 @@ class RegistroAnestesia(QWidget):
         self.btn_nuevo = QPushButton("NUEVO REGISTRO")
         self.btn_nuevo.clicked.connect(self.nuevo_registro)
 
-        self.btn_conectar_monitor = QPushButton("CONECTAR INTELLIVUE")
+        self.btn_conectar_monitor = QPushButton("CONECTAR MX500")
         self.btn_conectar_monitor.clicked.connect(
             self.conectar_monitor
         )
 
         self.btn_desconectar_monitor = QPushButton(
-            "DESCONECTAR INTELLIVUE"
+            "DESCONECTAR MX500"
         )
         self.btn_desconectar_monitor.clicked.connect(
             self.desconectar_monitor
         )
         self.btn_desconectar_monitor.setEnabled(False)
 
-        self.lbl_estado_monitor = QLabel("IntelliVue desconectado")
+        self.lbl_estado_monitor = QLabel("MX500 desconectado")
         self.lbl_estado_monitor.setAlignment(
             Qt.AlignmentFlag.AlignCenter
         )
@@ -3433,11 +3412,11 @@ class RegistroAnestesia(QWidget):
         self.btn_desconectar_monitor.setEnabled(conectado)
 
     def mostrar_error_monitor(self, mensaje):
-        self.lbl_estado_monitor.setText("Error de conexión IntelliVue")
-        print(f"[IntelliVue] {mensaje}", file=sys.stderr)
+        self.lbl_estado_monitor.setText("Error de conexión MX500")
+        print(f"[MX500] {mensaje}", file=sys.stderr)
 
     def recibir_muestra_monitor(self, muestra):
-        print("[IntelliVue] Nueva muestra:", muestra)
+        print("[MX500] Nueva muestra:", muestra)
         self.ultima_muestra_monitor = muestra
         self.muestras_monitor.append(muestra)
 
@@ -3461,146 +3440,47 @@ class RegistroAnestesia(QWidget):
             muestra.get("perfusion_index"),
             2,
         )
-        tas = mostrar(muestra.get("nibp_systolic"))
-        tad = mostrar(muestra.get("nibp_diastolic"))
-        pam = mostrar(muestra.get("nibp_mean"))
 
         self.lbl_vitales_monitor.setText(
             f"FC {fc} lpm | "
             f"SpO₂ {spo2} % | "
-            f"PNI {tas}/{tad} ({pam}) mmHg | "
             f"Pulso {pulso} lpm | "
             f"Perfusión {perfusion}"
         )
 
         self.lbl_estado_monitor.setText(
-            "IntelliVue conectado — datos en vivo"
+            "MX500 conectado — datos en vivo"
         )
 
         # Primera prueba gráfica real:
         # registra únicamente la primera FC recibida.
         fc_real = muestra.get("heart_rate")
-        tas_real = muestra.get("nibp_systolic")
-        tad_real = muestra.get("nibp_diastolic")
-        pam_real = muestra.get("nibp_mean")
         fuente_fc = "FC"
 
         if fc_real is None:
             fc_real = muestra.get("pulse")
             fuente_fc = "Pulso"
 
-        if fc_real is not None:
-            # ---------------------------------------------------------
-            # Adquisición continua desde Philips IntelliVue.
-            #
-            # Mientras permanecemos dentro del mismo intervalo de
-            # 5 minutos, actualizamos el mismo registro. Al cambiar
-            # de intervalo se crea una nueva columna.
-            # ---------------------------------------------------------
+        if (
+            fc_real is not None
+            and not self.grafica.datos_sv
+        ):
+            self.grafica.datos_sv.append({
+                "col": 0,
+                "fc": float(fc_real),
+                "spo2": muestra.get("spo2"),
+                "source": "philips_intellivue",
+                "value_source": fuente_fc,
+                "captured_at": muestra.get("captured_at"),
+            })
 
-            ahora = datetime.now()
-
-            minutos = self.grafica.minutos_desde_inicio(ahora)
-            col = max(0, minutos // 5)
-
-            if col >= self.grafica.max_columnas:
-                col = self.grafica.max_columnas - 1
-
-            # Buscamos un registro ya existente para esta columna.
-            dato_columna = None
-
-            for dato in self.grafica.datos_sv:
-                if dato.get("col") == col:
-                    dato_columna = dato
-                    break
-
-            accion = "actualizada"
-
-            if dato_columna is None:
-                dato_columna = {
-                    "col": col,
-                    "fc": None,
-                    "tas": None,
-                    "tad": None,
-                    "pam": None,
-                    "spo2": None,
-                    "source": "philips_intellivue",
-                    "value_source": fuente_fc,
-                    "captured_at": muestra.get("captured_at"),
-                }
-
-                self.grafica.datos_sv.append(
-                    dato_columna
-                )
-
-                accion = "creada"
-
-            # FC real o pulso, según disponibilidad.
-            dato_columna["fc"] = float(fc_real)
-
-            # No sustituimos un valor válido por None.
-            spo2_real = muestra.get("spo2")
-
-            if spo2_real is not None:
-                dato_columna["spo2"] = spo2_real
-
-            tas_real = muestra.get("nibp_systolic")
-            tad_real = muestra.get("nibp_diastolic")
-            pam_real = muestra.get("nibp_mean")
-
-            # La PNI es una medición aperiódica.
-            # Sólo registramos una nueva toma cuando el resultado está completo
-            # y es distinto de la última PNI que ya guardamos.
-            if (
-                tas_real is not None
-                and tad_real is not None
-                and pam_real is not None
-            ):
-                pni_actual = (
-                    float(tas_real),
-                    float(tad_real),
-                    float(pam_real),
-                )
-
-                if pni_actual != self.ultima_pni_registrada:
-                    dato_columna["tas"] = pni_actual[0]
-                    dato_columna["tad"] = pni_actual[1]
-                    dato_columna["pam"] = pni_actual[2]
-
-                    self.ultima_pni_registrada = pni_actual
-
-                    print(
-                        f"[IntelliVue] Nueva PNI registrada: "
-                        f"{pni_actual[0]:g}/{pni_actual[1]:g} "
-                        f"(PAM {pni_actual[2]:g}) "
-                        f"en columna {col}"
-                    )
-
-            dato_columna["source"] = "philips_intellivue"
-            dato_columna["value_source"] = fuente_fc
-            dato_columna["captured_at"] = muestra.get(
-                "captured_at"
-            )
-
-            # columna_actual conserva la semántica existente:
-            # apunta a la siguiente columna disponible.
-            self.grafica.columna_actual = min(
-                col + 1,
-                self.grafica.max_columnas,
-            )
-
+            self.grafica.columna_actual = 1
             self.grafica.cuadricula_sv.update()
             self.grafica.update()
 
             print(
-                f"[IntelliVue] Columna {col} {accion}: "
-                f"{fuente_fc}={fc_real} lpm | "
-                f"TA="
-                f"{tas_real if tas_real is not None else '—'}/"
-                f"{tad_real if tad_real is not None else '—'} "
-                f"(PAM {pam_real if pam_real is not None else '—'}) | "
-                f"SpO2="
-                f"{spo2_real if spo2_real is not None else '—'}"
+                "[MX500] Primer punto real dibujado: "
+                f"{fuente_fc}={fc_real} lpm"
             )
 
     def closeEvent(self, event):
@@ -4147,10 +4027,8 @@ class RegistroAnestesia(QWidget):
 
         self.muestras_monitor = []
         self.ultima_muestra_monitor = None
-        self.ultima_pni_registrada = None
-
         self.lbl_vitales_monitor.setText(
-            "FC — | SpO₂ — | PNI —/— (—) mmHg | Pulso — | Perfusión —"
+            "FC — | SpO₂ — | Pulso — | Perfusión —"
         )
 
         # Paciente

@@ -1,5 +1,7 @@
+import traceback
+
 from PyQt6.QtGui import (
-    QPainter, QPageSize, QPageLayout, QPen, QFont, QColor, QPolygonF
+    QPainter, QPageSize, QPageLayout, QPen, QFont, QColor, QPolygonF, QFontMetrics
 )
 from PyQt6.QtCore import Qt, QRect, QPointF
 from PyQt6.QtPrintSupport import QPrinter
@@ -101,12 +103,12 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             )
 
             painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
-            painter.drawLine(
-                int(text_x),
-                int(y + mm(1.0)),
-                int(text_x + field_w),
-                int(y + mm(1.0))
-            )
+            #painter.drawLine(
+            #    int(text_x),
+            #    int(y + mm(1.0)),
+            #    int(text_x + field_w),
+            #    int(y + mm(1.0))
+            # )
 
         def draw_unidad_field(x, y, valor, total_w):
             painter.setFont(font_label)
@@ -205,7 +207,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             )
 
             painter.setPen(QPen(Qt.GlobalColor.black, 1.5))
-            painter.drawLine(text_x, linea_y, x + total_w, linea_y)
+            # painter.drawLine(text_x, linea_y, x + total_w, linea_y)
 
             return linea_y
 
@@ -330,29 +332,95 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
         x2 = area_x + mm(95)
 
         # Fila 1: Nombre / NSS
-        draw_field_inline(x1, y, "Nombre:", paciente["nombre"], mm(15), mm(70))
-        draw_field_inline(x2, y, "NSS:", paciente["nss"], mm(10), mm(45))
+        draw_field_inline(
+            x1,
+            y,
+            "Nombre:",
+            paciente["nombre"],
+            mm(14),
+            mm(72)
+        )
+
+        draw_field_inline(
+            x2,
+            y,
+            "NSS:",
+            paciente["nss"],
+            mm(9),
+            mm(46)
+        )
+
         y += mm(7)
 
         # Fila 2: Edad / Sexo / Unidad
-        draw_field_inline(x1, y, "Edad:", paciente["edad"], mm(12), mm(25))
-        draw_field_inline(x1 + mm(50), y, "Sexo:", paciente["sexo"], mm(12), mm(30))
-        draw_field_inline(x1 + mm(95), y, "Unidad:", paciente["unidad"], mm(16), mm(55))
+        draw_field_inline(
+            x1,
+            y,
+            "Edad:",
+            paciente["edad"],
+            mm(10),
+            mm(27)
+        )
+
+        draw_field_inline(
+            x1 + mm(50),
+            y,
+            "Sexo:",
+            paciente["sexo"],
+            mm(10),
+            mm(32)
+        )
+
+        draw_field_inline(
+            x1 + mm(95),
+            y,
+            "Unidad:",
+            paciente["unidad"],
+            mm(13),
+            mm(57)
+        )
+
         y += mm(7)
 
         # Campos largos
-        x_texto_dx_cx = area_x + mm(43)
-
-        linea_y = draw_wrapped_field(area_x, y, "Diagnóstico preoperatorio:", cirugia["dx_pre"], x_texto_dx_cx, area_w)
+        linea_y = draw_wrapped_field(
+            area_x,
+            y,
+            "Diagnóstico preoperatorio:",
+            cirugia["dx_pre"],
+            area_x + mm(42),
+            area_w
+        )
         y = linea_y + mm(7)
 
-        linea_y = draw_wrapped_field(area_x, y, "Cirugía programada:", cirugia["cirugia_programada"], x_texto_dx_cx, area_w)
+        linea_y = draw_wrapped_field(
+            area_x,
+            y,
+            "Cirugía programada:",
+            cirugia["cirugia_programada"],
+            area_x + mm(33),
+            area_w
+        )
         y = linea_y + mm(7)
 
-        linea_y = draw_wrapped_field(area_x, y, "Diagnóstico operatorio:", cirugia["dx_post"], x_texto_dx_cx, area_w)
+        linea_y = draw_wrapped_field(
+            area_x,
+            y,
+            "Diagnóstico operatorio:",
+            cirugia["dx_post"],
+            area_x + mm(37),
+            area_w
+        )
         y = linea_y + mm(7)
 
-        linea_y = draw_wrapped_field(area_x, y, "Cirugía realizada:", cirugia["cirugia_realizada"], x_texto_dx_cx, area_w)
+        linea_y = draw_wrapped_field(
+            area_x,
+            y,
+            "Cirugía realizada:",
+            cirugia["cirugia_realizada"],
+            area_x + mm(28),
+            area_w
+        )
         y = linea_y + mm(7)
 
         # Médicos
@@ -361,8 +429,8 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             y,
             "Anestesiólogo:",
             cirugia.get("anestesiologo", ""),
-            mm(28),
-            mm(60)
+            mm(24),
+            mm(63)
         )
 
         draw_field_inline(
@@ -370,8 +438,8 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
             y,
             "Cirujano:",
             cirugia.get("cirujano", ""),
-            mm(18),
-            mm(62)
+            mm(15),
+            mm(65)
         )
 
         y += mm(8)
@@ -886,23 +954,38 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 columna_local = columna_global - col_inicio
                 eventos_por_columna[columna_local].append(numero)
 
-            y_num_eventos = y_sv_bottom + mm(1)
+            y_num_eventos = y_sv_bottom + mm(.15)
 
             for columna_local, numeros in eventos_por_columna.items():
-                texto = ",".join(sorted(numeros, key=int))
+                numeros_ordenados = sorted(numeros, key=int)
+
+                # Agrupar de 2 en 2:
+                # 1,2,3,4,5  ->  ["1,2", "3,4", "5"]
+                grupos = [
+                    numeros_ordenados[i:i + 2]
+                    for i in range(0, len(numeros_ordenados), 2)
+                ]
 
                 x_centro = x_grid + columna_local * ancho_col + ancho_col / 2
 
-                painter.drawText(
-                    QRect(
-                        int(x_centro - mm(4)),
-                        int(y_num_eventos),
-                        int(mm(8)),
-                        int(mm(4))
-                    ),
-                    Qt.AlignmentFlag.AlignCenter,
-                    texto
-                )
+                # Si hay un solo renglón, conserva la posición actual.
+                # Si hay varios, se distribuyen hacia abajo.
+                for fila, grupo in enumerate(grupos):
+                    texto = ",".join(grupo)
+
+                    y_fila = y_num_eventos + fila * mm(2.1)
+
+                    painter.drawText(
+                        QRect(
+                            int(x_centro - mm(4)),
+                            int(y_fila),
+                            int(mm(8)),
+                            int(mm(2.2))
+                        ),
+                        Qt.AlignmentFlag.AlignHCenter
+                        | Qt.AlignmentFlag.AlignVCenter,
+                        texto
+                    )
 
             if pagina_actual == 0:
                 # =========================
@@ -941,7 +1024,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 # =========================
                 # TABLA DE MEDICAMENTOS
                 # =========================
-                y_tabla = y_sv_bottom + mm(9)
+                y_tabla = y_sv_bottom + mm(4.8)
 
                 x_letra = area_x + mm(1)
                 w_letra = mm(8)
@@ -1007,9 +1090,13 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                 registro = ventana.obtener_registro_completo()
 
-                x_bloque = mm(110)
+                x_bloque = mm(101)
                 y_bloque = y_tabla
-                w_bloque = mm(70)
+
+                # Alinear el borde derecho de los tres módulos con el borde
+                # derecho de la cuadrícula de signos vitales.
+                x_borde_derecho = x_grid + w_grid
+                w_bloque = x_borde_derecho - x_bloque
                 margen_bloque = mm(2)
 
                 def texto_ml_pdf(valor):
@@ -1076,44 +1163,60 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     sub = tecnica.get("subtecnica", "") or ""
                     detalle = tecnica.get("detalle_regional", {}) or {}
 
-                    lineas = []
-                    if tipo:
-                        lineas.append((f"(X) {tipo.upper()}", True, mm(5)))
-                    if sub:
-                        lineas.append((f"(X) {sub}", True, mm(6)))
+                    tipo_det = detalle.get("tipo", "") or ""
+                    subtipo = detalle.get("subtipo", "") or ""
+                    nivel = detalle.get("nivel", "") or ""
+                    tipo_aguja = detalle.get("tipo_aguja", "") or ""
+                    anestesico_local = detalle.get("anestesico_local", "") or ""
+                    sitio = detalle.get("sitio", "") or ""
+                    calibre = detalle.get("calibre_aguja", "") or ""
+                    intentos = detalle.get("intentos", "") or ""
+                    cateter = detalle.get("cateter", "") or ""
 
-                    # Detalle regional: sólo imprime lo que exista.
-                    tipo_det = detalle.get("tipo", "")
-                    subtipo = detalle.get("subtipo", "")
-                    nivel = detalle.get("nivel", "")
-                    tipo_aguja = detalle.get("tipo_aguja", "")
-                    anestesico_local = detalle.get("anestesico_local", "")
-                    sitio = detalle.get("sitio", "")
-
-                    if tipo_det:
-                        lineas.append((f"Tipo regional: {tipo_det}", False, mm(8)))
-                    if subtipo:
-                        lineas.append((f"Subtipo: {subtipo}", False, mm(8)))
-                    if nivel:
-                        lineas.append((f"Nivel: {nivel}", False, mm(8)))
-                    if tipo_aguja:
-                        lineas.append((f"Aguja: {tipo_aguja}", False, mm(8)))
-                    if anestesico_local:
-                        lineas.append((f"Anestésico local: {anestesico_local}", False, mm(8)))
-                    if sitio:
-                        lineas.append((f"Sitio: {sitio}", False, mm(8)))
-
-                    if not lineas:
-                        lineas.append(("Sin técnica registrada", False, mm(5)))
-
+                    font_normal = QFont("Arial", 5.2)
+                    font_bold = QFont("Arial", 5.2, QFont.Weight.Bold)
                     alto_header = mm(6)
-                    alto_lineas = 0
-                    font_normal = QFont("Arial", 6)
-                    font_bold = QFont("Arial", 5.5, QFont.Weight.Bold)
-                    for texto, bold, indent in lineas:
-                        alto_lineas += alto_texto(texto, w - indent - mm(4), font_bold if bold else font_normal)
+                    margen_x = mm(3)
+                    ancho_util = w - 2 * margen_x
+                    alto_renglon = mm(4.2)
 
-                    h = max(mm(15), alto_header + alto_lineas + mm(2.5))
+                    # Renglón 1: resumen del método y sus componentes.
+                    resumen = []
+                    if tipo:
+                        resumen.append(f"(X) {tipo.upper()}")
+                    if sub:
+                        resumen.append(f"(X) {sub}")
+                    if tipo_det:
+                        regional = f"Regional: {tipo_det}"
+                        if subtipo:
+                            regional += f" ({subtipo})"
+                        resumen.append(regional)
+                    texto_resumen = "   ".join(resumen) or "Sin técnica registrada"
+
+                    # Renglón 2: cuatro datos cortos distribuidos en columnas.
+                    etiqueta_primaria = "Nivel" if nivel else "Sitio"
+                    valor_primario = nivel or sitio
+                    fila_2 = [
+                        (etiqueta_primaria, valor_primario),
+                        ("Aguja", tipo_aguja),
+                        ("Calibre", calibre),
+                        ("Intentos", intentos),
+                    ]
+
+                    # Renglón 3: datos largos. Si Nivel y Sitio existen, se conserva Sitio.
+                    fila_3 = []
+                    if nivel and sitio:
+                        fila_3.append(("Sitio", sitio))
+                    if cateter:
+                        fila_3.append(("Catéter", cateter))
+                    if anestesico_local:
+                        fila_3.append(("AL", anestesico_local))
+
+                    tiene_fila_2 = any(valor for _, valor in fila_2)
+                    tiene_fila_3 = bool(fila_3)
+                    n_renglones = 1 + int(tiene_fila_2) + int(tiene_fila_3)
+                    h = alto_header + n_renglones * alto_renglon + mm(1.5)
+                    h = max(mm(12), h)
 
                     painter.setPen(QPen(Qt.GlobalColor.black, 1))
                     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -1121,9 +1224,36 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                     draw_titulo_bloque(x, y, w, "MÉTODO Y TÉCNICA ANESTÉSICA")
 
                     y_cursor = y + alto_header
-                    for texto, bold, indent in lineas:
-                        fuente = font_bold if bold else font_normal
-                        y_cursor = draw_texto_wrap(x + indent, y_cursor, w - indent - mm(4), texto, fuente=fuente)
+                    painter.setFont(font_bold)
+                    painter.drawText(
+                        QRect(int(x + margen_x), int(y_cursor), int(ancho_util), int(alto_renglon)),
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                        texto_resumen
+                    )
+                    y_cursor += alto_renglon
+
+                    def draw_campos_en_renglon(campos, y_fila, columnas):
+                        visibles = [(e, v) for e, v in campos if v]
+                        if not visibles:
+                            return
+                        ancho_col = ancho_util / columnas
+                        for i, (etiqueta, valor) in enumerate(visibles[:columnas]):
+                            x_col = x + margen_x + i * ancho_col
+                            texto = f"{etiqueta}: {valor}" if etiqueta else str(valor)
+                            painter.setFont(font_normal)
+                            painter.drawText(
+                                QRect(int(x_col), int(y_fila), int(ancho_col - mm(1)), int(alto_renglon)),
+                                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                                texto
+                            )
+
+                    if tiene_fila_2:
+                        draw_campos_en_renglon(fila_2, y_cursor, 4)
+                        y_cursor += alto_renglon
+
+                    if tiene_fila_3:
+                        columnas_fila_3 = min(3, max(1, len(fila_3)))
+                        draw_campos_en_renglon(fila_3, y_cursor, columnas_fila_3)
 
                     return y + h
 
@@ -1163,7 +1293,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
 
                     return y + h
 
-                def draw_balance_hidrico(x, y, w):
+                def draw_balance_hidrico(x, y, w, y_limite=None):
                     balance_h = registro.get("balance_hidrico", {}) or {}
                     ingresos_b = balance_h.get("ingresos", {}) or {}
                     egresos_b = balance_h.get("egresos", {}) or {}
@@ -1177,6 +1307,7 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                         ("Crioprecip.", ingresos_b.get("crioprecipitados", "")),
                         ("Otros", ingresos_b.get("otros", "")),
                     ]
+
                     filas_egr = [
                         ("Sangrado", egresos_b.get("sangrado", "")),
                         ("Diuresis", egresos_b.get("diuresis", "")),
@@ -1185,13 +1316,42 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                         ("Otros", egresos_b.get("otros", "")),
                     ]
 
+                    # Quitar conceptos que no tengan una cifra distinta de cero
+                    filas_ing = [
+                        (lbl, val)
+                        for lbl, val in filas_ing
+                        if numero_ml_pdf(val) != 0
+                    ]
+
+                    filas_egr = [
+                        (lbl, val)
+                        for lbl, val in filas_egr
+                        if numero_ml_pdf(val) != 0
+                    ]
+
                     alto_header = mm(6)
                     alto_subheader = mm(4)
                     alto_fila = mm(3.6)
-                    n_filas = max(len(filas_ing), len(filas_egr))
+
+                    # La altura depende únicamente de los conceptos visibles
+                    n_filas = max(len(filas_ing), len(filas_egr), 1)
+
                     alto_totales = mm(5.5)
                     alto_balance = mm(6.5)
-                    h = alto_header + alto_subheader + n_filas * alto_fila + alto_totales + alto_balance + mm(2.5)
+
+                    h_contenido = (
+                        alto_header
+                        + alto_subheader
+                        + n_filas * alto_fila
+                        + alto_totales
+                        + alto_balance
+                        + mm(2.5)
+                    )
+                    # El Balance Hídrico absorbe el espacio vertical restante
+                    # hasta el borde inferior de la tabla de medicamentos. Si
+                    # el contenido requiere más altura, conserva su tamaño real.
+                    h_disponible = (y_limite - y) if y_limite is not None else 0
+                    h = max(h_contenido, h_disponible)
 
                     painter.setPen(QPen(Qt.GlobalColor.black, 1))
                     painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -1306,9 +1466,13 @@ def exportar_a_pdf_imss(ventana, ruta_pdf=None, nombre_sugerido="registro_aneste
                 # Dibujo en cadena: cada función devuelve el siguiente Y disponible.
                 y_siguiente = draw_metodo_tecnica(x_bloque, y_bloque, w_bloque) + margen_bloque
                 y_siguiente = draw_caso_obstetrico(x_bloque, y_siguiente, w_bloque) + margen_bloque
-                y_siguiente = draw_balance_hidrico(x_bloque, y_siguiente, w_bloque)
+                y_siguiente = draw_balance_hidrico(
+                    x_bloque, y_siguiente, w_bloque, y_limite=y_tabla_bottom
+                )
 
     except Exception as e:
+        traceback.print_exc()
+
         QMessageBox.critical(ventana, "Error", f"No se pudo generar el PDF.\n\n{e}")
         return
     finally:

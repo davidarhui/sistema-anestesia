@@ -1,22 +1,27 @@
 #!/usr/bin/env python3
 """
-Philips IntelliVue discovery listener (IPv6 / UDP 24005).
+Philips IntelliVue MX450/MX500 discovery listener (IPv6 / UDP 24005).
 
-Research/development use only.
-Passive capture: it does not send commands to the monitor or change settings.
+Research / development use only.
+This program is passive: it does not send commands to the monitor and does not
+change any monitor setting.
+
+Tested target environment:
+- macOS
+- Direct Ethernet link on interface en8
+- IntelliVue announcement from UDP/24005 to ff02::1/24005
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import socket
 import struct
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
+from typing import Iterable
 
 
 DISCOVERY_PORT = 24005
@@ -50,7 +55,10 @@ def mac_text(raw: bytes) -> str:
 
 
 def find_tag(data: bytes, tag: int) -> list[tuple[int, bytes]]:
-    """Locate simple Philips-style 16-bit tag + 16-bit length fields."""
+    """
+    Locate simple Philips-style 16-bit tag + 16-bit length fields.
+    Returns all syntactically valid occurrences.
+    """
     needle = struct.pack(">H", tag)
     results: list[tuple[int, bytes]] = []
     start = 0
@@ -73,14 +81,14 @@ def find_tag(data: bytes, tag: int) -> list[tuple[int, bytes]]:
 
 def parse_protocol_support(data: bytes) -> list[Endpoint]:
     """
-    Parse observed tag F101:
+    Parse tag F101, observed as:
         count: 16-bit
         total_length: 16-bit
-        repeated 8-byte entries:
-            application protocol
-            transport protocol
-            port
-            options
+        repeated entries:
+            application protocol: 16-bit
+            transport protocol:   16-bit
+            port:                 16-bit
+            options:              16-bit
     """
     endpoints: list[Endpoint] = []
 
@@ -95,7 +103,8 @@ def parse_protocol_support(data: bytes) -> list[Endpoint]:
             continue
 
         entries_blob = entries_blob[:declared_length]
-        number_to_read = min(count, len(entries_blob) // 8)
+        available = len(entries_blob) // 8
+        number_to_read = min(count, available)
 
         for position in range(number_to_read):
             fields = struct.unpack_from(">HHHH", entries_blob, position * 8)
@@ -118,10 +127,13 @@ def parse_ipv6_tag(data: bytes) -> list[str]:
 def parse_mac_tags(data: bytes) -> list[str]:
     candidates: list[str] = []
 
+    # F100 was observed to contain a 14-byte value beginning with the 6-byte MAC.
     for _, value in find_tag(data, 0xF100):
         if len(value) >= 6:
             candidates.append(mac_text(value[:6]))
 
+    # F27C contains a nested structure in the observed packet; retain any
+    # Philips OUI occurrence as a fallback.
     for match in re.finditer(rb"\x00\x09\xfb...", data, flags=re.DOTALL):
         candidates.append(mac_text(match.group(0)))
 
@@ -129,6 +141,11 @@ def parse_mac_tags(data: bytes) -> list[str]:
 
 
 def extract_length_prefixed_ascii(data: bytes) -> list[str]:
+    """
+    Best-effort extraction of strings encoded as:
+        16-bit byte length + string bytes
+    Philips packets also contain padding, so this is intentionally conservative.
+    """
     strings: list[str] = []
 
     for index in range(0, len(data) - 4):
@@ -149,89 +166,9 @@ def extract_length_prefixed_ascii(data: bytes) -> list[str]:
     return strings
 
 
-def capture_metadata(data: bytes, sender: tuple, interface: str) -> dict:
-    sender_ip, sender_port, flowinfo, scope_id = sender
-    strings = extract_length_prefixed_ascii(data) or printable_strings(data)
-
-    return {
-        "captured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "interface": interface,
-        "sender": {
-            "ipv6": sender_ip,
-            "port": sender_port,
-            "flowinfo": flowinfo,
-            "scope_id": scope_id,
-        },
-        "payload_length": len(data),
-        "ipv6_addresses": parse_ipv6_tag(data),
-        "mac_addresses": parse_mac_tags(data),
-        "endpoints": [asdict(endpoint) for endpoint in parse_protocol_support(data)],
-        "strings": strings,
-        "sha256_note": "Use shasum -a 256 on the .bin file if a checksum is needed.",
-    }
-
-
-def save_capture(
-    data: bytes,
-    sender: tuple,
-    interface: str,
-    output: Path,
-    overwrite: bool,
-) -> tuple[Path, Path, Path]:
-    """
-    Save the exact payload plus a JSON metadata sidecar and a text hex dump.
-
-    For --count > 1, appends _001, _002, etc. in main().
-    """
-    output = output.expanduser()
-
-    if output.suffix.lower() != ".bin":
-        output = output.with_suffix(".bin")
-
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    json_path = output.with_suffix(".json")
-    hex_path = output.with_suffix(".hex.txt")
-
-    existing = [path for path in (output, json_path, hex_path) if path.exists()]
-    if existing and not overwrite:
-        names = ", ".join(str(path) for path in existing)
-        raise FileExistsError(
-            f"Ya existe(n): {names}. Usa --overwrite o elige otra ruta con --save."
-        )
-
-    # Atomic-ish writes: create temporary files, then replace final paths.
-    bin_tmp = output.with_suffix(output.suffix + ".tmp")
-    json_tmp = json_path.with_suffix(json_path.suffix + ".tmp")
-    hex_tmp = hex_path.with_suffix(hex_path.suffix + ".tmp")
-
-    try:
-        bin_tmp.write_bytes(data)
-        json_tmp.write_text(
-            json.dumps(
-                capture_metadata(data, sender, interface),
-                indent=2,
-                ensure_ascii=False,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        hex_tmp.write_text(hex_dump(data) + "\n", encoding="utf-8")
-
-        bin_tmp.replace(output)
-        json_tmp.replace(json_path)
-        hex_tmp.replace(hex_path)
-    finally:
-        for temp in (bin_tmp, json_tmp, hex_tmp):
-            if temp.exists():
-                temp.unlink()
-
-    return output, json_path, hex_path
-
-
 def print_packet(data: bytes, sender: tuple, show_hex: bool) -> None:
     timestamp = datetime.now().isoformat(timespec="seconds")
-    sender_ip, sender_port, _flowinfo, scope_id = sender
+    sender_ip, sender_port, flowinfo, scope_id = sender
 
     print("\n" + "=" * 76)
     print(f"[{timestamp}] Anuncio IntelliVue recibido")
@@ -253,11 +190,11 @@ def print_packet(data: bytes, sender: tuple, show_hex: bool) -> None:
             print(f"  - {address}")
 
     if endpoints:
-        print("Endpoints anunciados:")
+        print("Endpoints anunciados (valores decimales y hexadecimales):")
         for endpoint in endpoints:
             print(
-                "  - app={app} transporte={trans} puerto={port} "
-                "opciones=0x{opts:04x}".format(
+                "  - app={app} (0x{app:04x}), transporte={trans} "
+                "(0x{trans:04x}), puerto={port}, opciones=0x{opts:04x}".format(
                     app=endpoint.application_protocol,
                     trans=endpoint.transport_protocol,
                     port=endpoint.port,
@@ -265,7 +202,10 @@ def print_packet(data: bytes, sender: tuple, show_hex: bool) -> None:
                 )
             )
 
-    strings = extract_length_prefixed_ascii(data) or printable_strings(data)
+    strings = extract_length_prefixed_ascii(data)
+    if not strings:
+        strings = printable_strings(data)
+
     if strings:
         print("Cadenas identificables:")
         for text in strings:
@@ -283,42 +223,15 @@ def build_socket(interface: str) -> socket.socket:
         raise RuntimeError(f"No existe la interfaz {interface!r}: {exc}") from exc
 
     sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    # En macOS ayuda cuando hay otros sockets escuchando el mismo puerto.
-    if hasattr(socket, "SO_REUSEPORT"):
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-
-    # Limita este socket a IPv6.
-    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
-
-    # Escuchar UDP/24005 en todas las direcciones IPv6 locales.
+    # On macOS, binding to all IPv6 addresses and the discovery port is enough
+    # to receive the ff02::1 all-nodes datagram. The multicast-interface setting
+    # makes the intended link explicit.
+    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_IF, interface_index)
     sock.bind(("::", DISCOVERY_PORT))
 
-    # Unirse explícitamente a ff02::1 en la interfaz indicada.
-    multicast_address = socket.inet_pton(socket.AF_INET6, "ff02::1")
-    membership_request = (
-        multicast_address
-        + interface_index.to_bytes(4, byteorder=sys.byteorder)
-    )
-
-    sock.setsockopt(
-        socket.IPPROTO_IPV6,
-        socket.IPV6_JOIN_GROUP,
-        membership_request,
-    )
-
     return sock
-
-
-def numbered_output(base: Path, position: int, count: int) -> Path:
-    if count == 1:
-        return base
-
-    suffix = base.suffix or ".bin"
-    stem = base.stem if base.suffix else base.name
-    return base.with_name(f"{stem}_{position:03d}{suffix}")
 
 
 def main() -> int:
@@ -339,21 +252,7 @@ def main() -> int:
     parser.add_argument(
         "--hex",
         action="store_true",
-        help="Muestra el payload completo en hexadecimal.",
-    )
-    parser.add_argument(
-        "--save",
-        type=Path,
-        metavar="RUTA.bin",
-        help=(
-            "Guarda el payload exacto. También crea RUTA.json y RUTA.hex.txt. "
-            "Ejemplo: --save capturas/mx450_discovery.bin"
-        ),
-    )
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Permite reemplazar archivos de captura existentes.",
+        help="Muestra además el payload completo en hexadecimal.",
     )
     args = parser.parse_args()
 
@@ -368,7 +267,7 @@ def main() -> int:
 
     print(
         f"Escuchando anuncios IntelliVue en [{args.interface}] UDP/{DISCOVERY_PORT}.\n"
-        "El anuncio puede tardar unos 60–65 segundos.\n"
+        "El monitor suele anunciarse aproximadamente cada 60–65 segundos.\n"
         "Ctrl+C para cancelar."
     )
 
@@ -376,28 +275,8 @@ def main() -> int:
     try:
         while received < args.count:
             data, sender = sock.recvfrom(65535)
-            received += 1
             print_packet(data, sender, args.hex)
-
-            if args.save is not None:
-                output = numbered_output(args.save, received, args.count)
-                try:
-                    bin_path, json_path, hex_path = save_capture(
-                        data=data,
-                        sender=sender,
-                        interface=args.interface,
-                        output=output,
-                        overwrite=args.overwrite,
-                    )
-                except (OSError, FileExistsError) as exc:
-                    print(f"\nNo se pudo guardar la captura: {exc}", file=sys.stderr)
-                    return 1
-
-                print("\nCaptura guardada:")
-                print(f"  BIN exacto: {bin_path}")
-                print(f"  Metadatos:  {json_path}")
-                print(f"  Hex dump:   {hex_path}")
-
+            received += 1
     except KeyboardInterrupt:
         print("\nCaptura cancelada.")
     except OSError as exc:
