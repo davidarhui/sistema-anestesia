@@ -43,6 +43,7 @@ class IntelliVueConnection(QObject):
         self._helper_ready_file = None
         self._helper_error_file = None
         self._helper_log_file = None
+        self._caffeinate_process = None
 
     @property
     def activo(self):
@@ -88,6 +89,47 @@ class IntelliVueConnection(QObject):
                     f"Falta componente del SDK: {path}"
                 )
 
+    def _start_caffeinate(self):
+        proc = self._caffeinate_process
+
+        if proc is not None and proc.poll() is None:
+            return
+
+        try:
+            self._caffeinate_process = subprocess.Popen(
+                ["/usr/bin/caffeinate", "-dimsu"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self.estado_cambiado.emit(
+                "🟡 Protección contra suspensión de macOS activa"
+            )
+        except Exception as exc:
+            self._caffeinate_process = None
+            self.error_recibido.emit(
+                f"No fue posible activar protección contra suspensión: {exc}"
+            )
+
+
+    def _stop_caffeinate(self):
+        proc = self._caffeinate_process
+        self._caffeinate_process = None
+
+        if proc is None:
+            return
+
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2.0)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=1.0)
+        except Exception:
+            pass
+
     def iniciar(
         self,
         monitor_ip="192.168.50.2",
@@ -103,6 +145,7 @@ class IntelliVueConnection(QObject):
         self._validar_sdk()
         self._cancel.clear()
         self._deteniendo = False
+        self._start_caffeinate()
 
         with self._lock:
             self._preparing = True
@@ -241,6 +284,7 @@ class IntelliVueConnection(QObject):
             self._preparing = False
             self._session = None
         self._stop_privileged_dhcp()
+        self._stop_caffeinate()
 
     @staticmethod
     def _apple_script_string(text: str) -> str:
@@ -385,9 +429,12 @@ class IntelliVueConnection(QObject):
             )
         finally:
             self._stop_privileged_dhcp()
+            self._stop_caffeinate()
+
             with self._lock:
                 self._session = None
                 self._preparing = False
+
             self._deteniendo = False
             self.estado_cambiado.emit("⚪ Philips IntelliVue desconectado")
 
