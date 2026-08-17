@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
+
 
 
 def parent_alive(pid: int) -> bool:
@@ -28,6 +30,39 @@ def parent_alive(pid: int) -> bool:
         return True
     return True
 
+def prepare_interface(
+    interface: str,
+    server_ip: str,
+    subnet_mask: str,
+) -> None:
+    """Ensure the dedicated IntelliVue interface owns the server IPv4."""
+
+    result = subprocess.run(
+        ["/sbin/ifconfig", interface],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+
+    expected = f"inet {server_ip} "
+
+    if expected in result.stdout:
+        return
+
+    subprocess.run(
+        [
+            "/sbin/ifconfig",
+            interface,
+            "inet",
+            server_ip,
+            "netmask",
+            subnet_mask,
+            "up",
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -60,6 +95,12 @@ def main() -> int:
     try:
         from philips_intellivue.dhcp_server import DHCPServerConfig
         from philips_intellivue.dhcp_service import DHCPService
+
+        prepare_interface(
+        interface=args.interface,
+        server_ip=args.server_ip,
+        subnet_mask=args.subnet,
+    )
 
         config = DHCPServerConfig(
             interface=args.interface,
