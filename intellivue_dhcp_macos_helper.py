@@ -35,7 +35,7 @@ def main() -> int:
     parser.add_argument("--interface", default="en8")
     parser.add_argument("--server-ip", default="192.168.50.1")
     parser.add_argument("--client-ip", default="192.168.50.2")
-    parser.add_argument("--client-mac", required=True)
+    parser.add_argument("--client-mac", default=None)
     parser.add_argument("--subnet", default="255.255.255.0")
     parser.add_argument("--lease", type=int, default=3600)
     parser.add_argument("--stop-file", required=True)

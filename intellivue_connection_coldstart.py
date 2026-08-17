@@ -95,7 +95,7 @@ class IntelliVueConnection(QObject):
         timeout=15,
         duration=21600,
         interface="en8",
-        client_mac="00:09:fb:88:bf:13",
+        client_mac=None,
     ):
         if self.activo:
             raise RuntimeError("La conexión IntelliVue ya está en curso")
@@ -117,7 +117,7 @@ class IntelliVueConnection(QObject):
                 timeout=float(timeout),
                 duration=float(duration),
                 interface=str(interface),
-                client_mac=str(client_mac),
+                client_mac=client_mac,
             ),
             name="QtPhilipsSessionStart",
             daemon=True,
@@ -280,7 +280,6 @@ class IntelliVueConnection(QObject):
             "--interface", interface,
             "--server-ip", local_ip,
             "--client-ip", monitor_ip,
-            "--client-mac", client_mac,
             "--subnet", "255.255.255.0",
             "--lease", "3600",
             "--stop-file", str(self._helper_stop_file),
@@ -288,6 +287,8 @@ class IntelliVueConnection(QObject):
             "--error-file", str(self._helper_error_file),
             "--parent-pid", str(os.getpid()),
         ]
+        if client_mac:
+            args.extend(["--client-mac", str(client_mac)])
 
         command = " ".join(shlex.quote(arg) for arg in args)
         command += (
