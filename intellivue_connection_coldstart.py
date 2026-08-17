@@ -461,6 +461,10 @@ class IntelliVueConnection(QObject):
             self.estado_cambiado.emit(
                 "🟡 Asociando; esperando MDS y datos…"
             )
+        elif "Lector clínico IntelliVue iniciado" in message:
+            self.estado_cambiado.emit(
+                "🟡 IntelliVue conectado; esperando datos clínicos…"
+            )
         elif message:
             self.estado_cambiado.emit(message)
 
